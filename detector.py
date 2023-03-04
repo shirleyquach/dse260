@@ -24,6 +24,15 @@ from sklearn.preprocessing import StandardScaler
 from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 class Detector(AbstractDetector):
     def __init__(self, metaparameter_filepath, learned_parameters_dirpath, scale_parameters_filepath):
@@ -102,7 +111,7 @@ class Detector(AbstractDetector):
         }
 
         with open(join(self.learned_parameters_dirpath, basename(self.metaparameter_filepath)), "w") as fp:
-            json.dump(metaparameters, fp)
+            json.dump(metaparameters, fp, cls=NpEncoder)
 
     def automatic_configure(self, models_dirpath: str):
         """Configuration of the detector iterating on some of the parameters from the

@@ -50,7 +50,7 @@ def load_model(model_filepath: str) -> (dict, str):
     model = torch.load(model_filepath)
     model_class = model.__class__.__name__
     model_repr = OrderedDict(
-        {layer: tensor.numpy() for (layer, tensor) in model.state_dict().items()}
+        {layer: tensor.cpu().numpy() for (layer, tensor) in model.state_dict().items()}
     )
 
     return model, model_repr, model_class
