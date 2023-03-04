@@ -7,10 +7,13 @@ from tqdm import tqdm
 def feature_reduction(model, weight_table, max_features):
     outputs = {}
     tf = max_features / len(model)
-    sm = sum([l.shape[0] for l in model.values()])
+    add_feat = max_features - len(model) # factor for the length of this model vs max
+    sm = sum([l.shape[0] for l in model.values()])  # sum of the shape
     for (layer, weights) in model.items():
-        wt_i = np.round(weights.shape[0] / sm * 100).astype(np.int32)
-        out_f = int(weight_table[wt_i] * tf)
+        #wt_i = np.round(weights.shape[0] / sm * 100).astype(np.int32)  # based on what percentage of the weights this layer has
+        #out_f = np.round(weight_table[wt_i] * tf).astype(np.int32)  # out_f = int(weight_table[wt_i] * tf)
+        wt_percent = (weights.shape[0] / sm)
+        out_f = int(np.round(wt_percent * add_feat))+1
         if layer == list(model.keys())[-1]:
             out_f = max_features - sum(outputs.values())
         assert out_f > 0
@@ -49,8 +52,6 @@ def fit_feature_reduction_algorithm(model_dict, weight_table_params, input_featu
 
 def use_feature_reduction_algorithm(layer_transform, model):
     out_model = np.array([[]])
-
     for (layer, weights) in model.items():
         out_model = np.hstack((out_model, layer_transform[layer].transform([weights])))
-
     return out_model
