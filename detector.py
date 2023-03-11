@@ -7,17 +7,20 @@ from os.path import join, exists, basename
 
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import classification_report
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
-from utils.models import create_layer_map, load_model, \
+from utils.models import create_layer_map, load_model, load_ground_truth, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
+    fit_feature_reduction_algorithm_PCA_ICA,
+    use_feature_reduction_algorithm_PCA_ICA
 )
 
 from sklearn.preprocessing import StandardScaler
@@ -124,7 +127,7 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
-        for random_seed in np.random.randint(1000, 9999, 10):
+        for random_seed in np.random.randint(1000, 9999, 10):  # changes the number of loops on trainer
             self.weight_table_params["random_seed"] = random_seed
             self.manual_configure(models_dirpath)
 
@@ -165,9 +168,12 @@ class Detector(AbstractDetector):
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
+        del model_repr
         logging.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
+        #layer_transform = fit_feature_reduction_algorithm_PCA_ICA(flat_models, self.weight_table_params, self.input_features)
+
 
         logging.info("Feature reduction applied. Creating feature file...")
         X = None
@@ -186,6 +192,7 @@ class Detector(AbstractDetector):
                 model_feats = use_feature_reduction_algorithm(
                     layer_transform[model_arch], model
                 )
+                #model_feats = use_feature_reduction_algorithm_PCA_ICA(
                 if X is None:
                     X = model_feats
                     continue
@@ -195,6 +202,7 @@ class Detector(AbstractDetector):
         #store layer_transform
         with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
             pickle.dump(layer_transform, fp)
+        del layer_transform
 
         logging.info("Training RandomForestRegressor model...")
         model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
@@ -324,8 +332,10 @@ class Detector(AbstractDetector):
             # with open(result_filepath, "w") as fp:
             #    fp.write(probability)
 
+            ground_truth = load_ground_truth(test_model)
+
             # logging.info("Trojan probability: %s", probability)
-            results.append([test_model[-11:], probability])
+            results.append([test_model[-11:], probability, ground_truth])
 
         # log the results
         run_time = str(time.time() - start_time)
@@ -333,7 +343,15 @@ class Detector(AbstractDetector):
         st_str = datetime.fromtimestamp(start_time).strftime('%Y%m%d_%H:%M:%S')
         fn = 'results_' + st_str + '.csv'
         dm_str = str(detector_model)
-        test_log = [run_time, test_count, dm_str, fn]
+
+        # calculate metrics
+        results = np.asarray(results)
+        y_true = results[:, 2].astype(int)
+        y_pred = results[:, 1].astype(float).round().astype(int)  # convert probability to class
+        target_names = ['clean', 'trojan']
+        c_report = classification_report(y_true, y_pred, target_names=target_names, output_dict=True) # save dictionary of report
+        print(classification_report(y_true, y_pred, target_names=target_names))
+        test_log = [run_time, test_count, dm_str, fn, c_report]
 
         np.savetxt('./results/results_' + st_str + '.csv', results, delimiter=", ", fmt='% s')
         np.savetxt('./results/result_info' + st_str + '.csv', test_log, delimiter=", ", fmt='% s')
