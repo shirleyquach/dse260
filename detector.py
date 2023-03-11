@@ -21,8 +21,11 @@ from utils.reduction import (
 )
 
 from sklearn.preprocessing import StandardScaler
-from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
+# from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
+
+import time
+from datetime import datetime
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -189,6 +192,10 @@ class Detector(AbstractDetector):
 
                 X = np.vstack((X, model_feats * self.model_skew["__all__"]))
 
+        #store layer_transform
+        with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
+            pickle.dump(layer_transform, fp)
+
         logging.info("Training RandomForestRegressor model...")
         model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
         model.fit(X, y)
@@ -248,9 +255,12 @@ class Detector(AbstractDetector):
             examples_dirpath:
             round_training_dataset_dirpath:
         """
+
+        start_time = time.time()
+
         with open(self.model_layer_map_filepath, "rb") as fp:
             model_layer_map = pickle.load(fp)
-
+        '''
         # List all available model and limit to the number provided
         model_path_list = sorted(
             [
@@ -262,10 +272,10 @@ class Detector(AbstractDetector):
 
         model_repr_dict, _ = load_models_dirpath(model_path_list)
         logging.info("Loaded models. Flattenning...")
-
+        '''
         with open(self.models_padding_dict_filepath, "rb") as fp:
             models_padding_dict = pickle.load(fp)
-
+        '''
         for model_class, model_repr_list in model_repr_dict.items():
             for index, model_repr in enumerate(model_repr_list):
                 model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
@@ -273,28 +283,57 @@ class Detector(AbstractDetector):
         # Flatten model
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
+        del model_repr
         logging.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-
-        model, model_repr, model_class = load_model(model_filepath)
-        model_repr = pad_model(model_repr, model_class, models_padding_dict)
-        flat_model = flatten_model(model_repr, model_layer_map[model_class])
-
-        # Inferences on examples to demonstrate how it is done for a round
-        # This is not needed for the random forest classifier
-        self.inference_on_example_data(model, examples_dirpath)
-
-        X = (
-            use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
-            * self.model_skew["__all__"]
+        '''
+        # List all available test model and limit to the number provided
+        test_model_path_list = sorted(
+            [
+                join(round_training_dataset_dirpath, 'test_models', model)
+                for model in listdir(join(round_training_dataset_dirpath, 'test_models'))
+            ]
         )
 
+        with open(self.learned_parameters_dirpath + 'layer_transform.bin', "rb") as fp:
+            layer_transform = pickle.load(fp)
+
+        results=[]
         with open(self.model_filepath, "rb") as fp:
-            regressor: RandomForestRegressor = pickle.load(fp)
+            detector_model: RandomForestRegressor = pickle.load(fp)
 
-        probability = str(regressor.predict(X)[0])
-        with open(result_filepath, "w") as fp:
-            fp.write(probability)
+        logging.info(f"Running inference on %d models...", len(test_model_path_list))
+        for test_model in tqdm(test_model_path_list):
+            test_model_filepath = test_model + '/model.pt'
+            model, model_repr, model_class = load_model(test_model_filepath)
+            model_repr = pad_model(model_repr, model_class, models_padding_dict)
+            flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-        logging.info("Trojan probability: %s", probability)
+            # Inferences on examples to demonstrate how it is done for a round
+            # This is not needed for the random forest classifier
+            # self.inference_on_example_data(model, examples_dirpath)
+
+            X = (
+                use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
+                * self.model_skew["__all__"]
+            )
+
+            probability = str(detector_model.predict(X)[0])
+
+            # with open(result_filepath, "w") as fp:
+            #    fp.write(probability)
+
+            # logging.info("Trojan probability: %s", probability)
+            results.append([test_model[-11:], probability])
+
+        # log the results
+        run_time = str(time.time() - start_time)
+        test_count = len(test_model_path_list)
+        st_str = datetime.fromtimestamp(start_time).strftime('%Y%m%d_%H:%M:%S')
+        fn = 'results_' + st_str + '.csv'
+        dm_str = str(detector_model)
+        test_log = [run_time, test_count, dm_str, fn]
+
+        np.savetxt('./results/results_' + st_str + '.csv', results, delimiter=", ", fmt='% s')
+        np.savetxt('./results/result_info' + st_str + '.csv', test_log, delimiter=", ", fmt='% s')
