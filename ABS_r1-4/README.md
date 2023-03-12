@@ -17,10 +17,26 @@ The ABS for TrojAI competition is enchanced for better performance. For example,
 
 This repo also include the source code of ABS tensorflow+keras version
 
-### Dependences
-Python 3.6, tensoflow=1.12.0, keras=2.2.4, imageio, numpy, pickle, h5py
+### Updated Dependences
+Python 3.10, tensoflow=2.10, keras=2.10, imageio, numpy, pickle, h5py
+
+Note: Tested with CUDA 12.1 and CUDNN 8.8
 
 ### Environment Config
+```Bash
+conda create -y -n trojai_3 python=3.10
+conda activate trojai_3
+conda env update --file conda-requirements.yaml
+```
+
+### Usage
+`python abs_2.py`
+
+
+### Original Dependences
+Python 3.6, tensoflow=1.12.0, keras=2.2.4, imageio, numpy, pickle, h5py
+
+### Original Environment Config
 ```Bash
 conda create -y -n trojai python=3.6
 conda activate trojai

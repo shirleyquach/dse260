@@ -1,7 +1,7 @@
 {
     "_comment": "====Environment====",
     "gpu_id": "0",
-    "print_level": 1,
+    "print_level": 0,
     "use_pickle": 1,
     "use_h5": 0,
     "random_seed": 333,
@@ -14,14 +14,12 @@
     "reasr_bound": 0.8,
     "use_resnet": 0,
     "has_softmax": 1,
-
     "_comment": "====Neuron Sampling====",
     "samp_k": 8,
     "same_range": 0,
     "n_samples": 5,
     "samp_batch_size": 8,
     "top_n_neurons": 20,
-
     "_comment": "====RE Mask====",
     "max_troj_size": 64,
     "mask_multi_start": 1,
