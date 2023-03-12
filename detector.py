@@ -9,6 +9,10 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import classification_report
 from tqdm import tqdm
+from hpsklearn import HyperoptEstimator, random_forest_classifier, xgboost_classification, \
+    sgd_classifier, svc, gradient_boosting_classifier, k_neighbors_classifier, gradient_boosting_regressor, \
+    linear_regression, elastic_net, logistic_regression, xgboost_regression, random_forest_regressor
+from hyperopt import hp
 
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
@@ -16,12 +20,10 @@ from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, load_ground_truth, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
-from utils.reduction import (
-    fit_feature_reduction_algorithm,
-    use_feature_reduction_algorithm,
-    fit_feature_reduction_algorithm_PCA_ICA,
-    use_feature_reduction_algorithm_PCA_ICA
-)
+from utils.reduction import fit_feature_reduction_algorithm_pca_ica, \
+    use_feature_reduction_algorithm_pca_ica
+    # fit_feature_reduction_algorithm,
+    # use_feature_reduction_algorithm,
 
 from sklearn.preprocessing import StandardScaler
 # from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
@@ -127,7 +129,7 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
-        for random_seed in np.random.randint(1000, 9999, 10):  # changes the number of loops on trainer
+        for random_seed in np.random.randint(1000, 9999, 1):  # changes the number of loops on trainer
             self.weight_table_params["random_seed"] = random_seed
             self.manual_configure(models_dirpath)
 
@@ -155,6 +157,8 @@ class Detector(AbstractDetector):
         for model_class, model_repr_list in model_repr_dict.items():
             for index, model_repr in enumerate(model_repr_list):
                 model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
+        del model_repr
+        del model_repr_list
 
         check_models_consistency(model_repr_dict)
 
@@ -168,12 +172,10 @@ class Detector(AbstractDetector):
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
-        del model_repr
         logging.info("Models flattened. Fitting feature reduction...")
 
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        #layer_transform = fit_feature_reduction_algorithm_PCA_ICA(flat_models, self.weight_table_params, self.input_features)
-
+        # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
+        layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
 
         logging.info("Feature reduction applied. Creating feature file...")
         X = None
@@ -186,27 +188,76 @@ class Detector(AbstractDetector):
             logging.info("Parsing %s models...", model_arch)
             for _ in tqdm(range(len(models))):
                 model = models.pop(0)
-                y.append(model_ground_truth_dict[model_arch][model_index])
+                y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
 
+                '''
                 model_feats = use_feature_reduction_algorithm(
                     layer_transform[model_arch], model
                 )
-                #model_feats = use_feature_reduction_algorithm_PCA_ICA(
                 if X is None:
                     X = model_feats
                     continue
 
                 X = np.vstack((X, model_feats * self.model_skew["__all__"]))
+                '''
 
-        #store layer_transform
+        # stack transformed features
+        for model_arch, layers in layer_transform.items():
+            arch_feats = None
+            for layer, layer_attributes in tqdm(layers.items()):
+                layer_feats = layer_transform[model_arch][layer].pop('ICA_feat')
+                if arch_feats is None:
+                    arch_feats = layer_feats
+                    continue
+                # horizontal stack each layer
+                arch_feats = np.hstack((arch_feats, layer_feats * self.model_skew["__all__"]))
+            # vertical stack samples from each architecture
+            if X is None:
+                X = arch_feats
+                continue
+            X = np.vstack((X, arch_feats))
+
+        with open(self.learned_parameters_dirpath + 'train.pkl', "wb") as fp:
+            pickle.dump(X, fp)
+        with open(self.learned_parameters_dirpath + 'target.pkl', "wb") as fp:
+            pickle.dump(y, fp)
+
+        # delete ICA features before storage
+        # store layer_transform
         with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
             pickle.dump(layer_transform, fp)
         del layer_transform
 
-        logging.info("Training RandomForestRegressor model...")
-        model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
+        logging.info("Training detector model...")
+        # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
+        '''
+        clf = hp.pchoice('my_name',
+                         [(0.2, gradient_boosting_regressor('my_name.gradient_boosting_regressor')),
+                          (0.2, linear_regression('my_name.linear_regression')),
+                          (0.2, elastic_net('my_name.elastic_net')),
+                          (0.2, logistic_regression('my_name.logistic_regression')),
+                          (0.2, xgboost_regression('my_name.xgboost_regression')),
+                          (0.2, random_forest_regressor('my_name.random_forest_regressor'))
+                          ]
+                         )
+        '''
+        clf = hp.pchoice('my_name',
+                         [(0.2, random_forest_classifier('my_name.random_forest_classifier')),
+                          (0.2, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
+                          (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
+                          (0.2, sgd_classifier('my_name.sgd_classifier')),
+                          (0.2, svc('my_name.svc')),
+                          (0.2, xgboost_classification('my_name.xgboost_classification'))
+                          ]
+                         )
+        clf = hp.pchoice('my_name',
+                         [(1.0, k_neighbors_classifier('my_name.random_forest_classifier'))]
+                         )
+        model = HyperoptEstimator(classifier=clf, n_jobs=8, max_evals=10, preprocessing=[])
         model.fit(X, y)
+        print(model.score(X, y))
+        print(model.best_model())
 
         logging.info("Saving RandomForestRegressor model...")
         with open(self.model_filepath, "wb") as fp:
@@ -307,9 +358,9 @@ class Detector(AbstractDetector):
         with open(self.learned_parameters_dirpath + 'layer_transform.bin', "rb") as fp:
             layer_transform = pickle.load(fp)
 
-        results=[]
+        results = []
         with open(self.model_filepath, "rb") as fp:
-            detector_model: RandomForestRegressor = pickle.load(fp)
+            detector_model = pickle.load(fp)
 
         logging.info(f"Running inference on %d models...", len(test_model_path_list))
         for test_model in tqdm(test_model_path_list):
@@ -323,7 +374,7 @@ class Detector(AbstractDetector):
             # self.inference_on_example_data(model, examples_dirpath)
 
             X = (
-                use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
+                use_feature_reduction_algorithm_pca_ica(layer_transform[model_class], flat_model)
                 * self.model_skew["__all__"]
             )
 
