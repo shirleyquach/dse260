@@ -1,0 +1,96 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 1 files
+Detected 4 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: abs.py
+--------------------------------------------------------------------------------
+abs.py:457:15: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+abs.py:460:20: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+abs.py:467:20: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+abs.py:1045:17: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+================================================================================
+Detailed log follows:
+
+================================================================================
+--------------------------------------------------------------------------------
+Processing file 'abs.py'
+ outputting to 'abs_2.py'
+--------------------------------------------------------------------------------
+
+456:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+456:37: INFO: Renamed 'tf.AUTO_REUSE' to 'tf.compat.v1.AUTO_REUSE'
+457:15: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+457:15: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+459:22: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+460:20: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+460:20: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+466:22: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+467:20: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+467:20: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+581:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+582:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+583:17: INFO: Added keywords to args of function 'tf.reduce_sum'
+584:17: INFO: Added keywords to args of function 'tf.reduce_sum'
+585:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+599:16: INFO: Added keywords to args of function 'tf.reduce_sum'
+605:14: INFO: Renamed 'tf.count_nonzero' to 'tf.math.count_nonzero'
+612:12: INFO: Added keywords to args of function 'tf.cond'
+614:24: INFO: Added keywords to args of function 'tf.cond'
+624:19: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+626:19: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+627:12: INFO: Added keywords to args of function 'tf.gradients'
+705:9: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+706:15: INFO: Renamed 'tf.global_variables_initializer' to 'tf.compat.v1.global_variables_initializer'
+1018:16: INFO: Renamed 'tf.reset_default_graph' to 'tf.compat.v1.reset_default_graph'
+1037:18: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+1040:18: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+1041:19: INFO: Added keywords to args of function 'tf.transpose'
+1044:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+1044:37: INFO: Renamed 'tf.AUTO_REUSE' to 'tf.compat.v1.AUTO_REUSE'
+1045:17: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+1045:17: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+1048:15: INFO: Added keywords to args of function 'tf.nn.max_pool'
+1048:15: INFO: Renamed keyword argument for tf.nn.max_pool from value to input
+1048:15: INFO: Renamed 'tf.nn.max_pool' to 'tf.nn.max_pool2d'
+1054:16: INFO: Added keywords to args of function 'tf.nn.max_pool'
+1054:16: INFO: Renamed keyword argument for tf.nn.max_pool from value to input
+1054:16: INFO: Renamed 'tf.nn.max_pool' to 'tf.nn.max_pool2d'
+1060:15: INFO: Added keywords to args of function 'tf.nn.avg_pool'
+1060:15: INFO: Renamed keyword argument for tf.nn.avg_pool from value to input
+1060:15: INFO: Renamed 'tf.nn.avg_pool' to 'tf.nn.avg_pool2d'
+1078:18: INFO: Added keywords to args of function 'tf.transpose'
+1163:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+1164:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+1165:17: INFO: Added keywords to args of function 'tf.reduce_sum'
+1166:17: INFO: Added keywords to args of function 'tf.reduce_sum'
+1168:13: INFO: Added keywords to args of function 'tf.reduce_sum'
+1176:20: INFO: Added keywords to args of function 'tf.reduce_sum'
+1180:21: INFO: Added keywords to args of function 'tf.reduce_sum'
+1184:21: INFO: Added keywords to args of function 'tf.reduce_sum'
+1186:16: INFO: Added keywords to args of function 'tf.transpose'
+1187:16: INFO: Added keywords to args of function 'tf.transpose'
+1193:25: INFO: Added keywords to args of function 'tf.cond'
+1199:15: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+1200:12: INFO: Added keywords to args of function 'tf.gradients'
+1264:9: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+1265:15: INFO: Renamed 'tf.global_variables_initializer' to 'tf.compat.v1.global_variables_initializer'
+1527:16: INFO: Renamed 'tf.reset_default_graph' to 'tf.compat.v1.reset_default_graph'
+1557:18: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+1560:18: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+1561:19: INFO: Added keywords to args of function 'tf.transpose'
+1563:13: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+1564:11: INFO: Added keywords to args of function 'tf.nn.max_pool'
+1564:11: INFO: Renamed keyword argument for tf.nn.max_pool from value to input
+1564:11: INFO: Renamed 'tf.nn.max_pool' to 'tf.nn.max_pool2d'
+1570:12: INFO: Added keywords to args of function 'tf.nn.max_pool'
+1570:12: INFO: Renamed keyword argument for tf.nn.max_pool from value to input
+1570:12: INFO: Renamed 'tf.nn.max_pool' to 'tf.nn.max_pool2d'
+1576:11: INFO: Added keywords to args of function 'tf.nn.avg_pool'
+1576:11: INFO: Renamed keyword argument for tf.nn.avg_pool from value to input
+1576:11: INFO: Renamed 'tf.nn.avg_pool' to 'tf.nn.avg_pool2d'
+1593:18: INFO: Added keywords to args of function 'tf.transpose'
+1595:9: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+--------------------------------------------------------------------------------
+

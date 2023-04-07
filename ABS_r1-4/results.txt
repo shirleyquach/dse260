@@ -1,0 +1,15 @@
+./models/nin_trojan_dark_red_1_1.h5 filter check 0.47002196311950684
+./models/nin_trojan_dark_red_1_1.h5 both filter and mask check 0.47002196311950684
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_3_18_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_3_18_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_3_18_64_0']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_2_144_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_2_144_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_2_144_64_0']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_2_127_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_2_127_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_2_127_64_0']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_4_71_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_4_71_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_4_71_64_0']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_5_67_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_5_67_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_5_67_64_0']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_1_75_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_1_75_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_1_75_64_0']
+reasr info [0.3601261377334595, 'mask', '5', './imgs/nin_trojan_dark_red_1_1_model_conv2d_7_66_64_5.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_7_66_64_5', './deltas/nin_trojan_dark_red_1_1_model_conv2d_7_66_64_5']
+reasr info [0.16127924621105194, 'mask', '0', './imgs/nin_trojan_dark_red_1_1_model_conv2d_4_129_64_0.png', './masks/nin_trojan_dark_red_1_1_model_conv2d_4_129_64_0', './deltas/nin_trojan_dark_red_1_1_model_conv2d_4_129_64_0']
+reasr info [0.4680984616279602, 'filter', '0', './imgs/filter_nin_trojan_dark_red_1_1_model_conv2d_1_61_64_0.png', './deltas/filter_nin_trojan_dark_red_1_1_model_conv2d_1_61_64_0']
+reasr info [0.40831196308135986, 'filter', '0', './imgs/filter_nin_trojan_dark_red_1_1_model_conv2d_1_78_64_0.png', './deltas/filter_nin_trojan_dark_red_1_1_model_conv2d_1_78_64_0']
+reasr info [0.20992812514305115, 'filter', '0', './imgs/filter_nin_trojan_dark_red_1_1_model_conv2d_1_184_64_0.png', './deltas/filter_nin_trojan_dark_red_1_1_model_conv2d_1_184_64_0']
+reasr info [0.47002196311950684, 'filter', '0', './imgs/filter_nin_trojan_dark_red_1_1_model_conv2d_1_75_64_0.png', './deltas/filter_nin_trojan_dark_red_1_1_model_conv2d_1_75_64_0']
+reasr info [0.1612798422574997, 'filter', '0', './imgs/filter_nin_trojan_dark_red_1_1_model_conv2d_4_129_64_0.png', './deltas/filter_nin_trojan_dark_red_1_1_model_conv2d_4_129_64_0']

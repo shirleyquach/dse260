@@ -1,0 +1,78 @@
+{
+	"_comment": "====Environment====",
+	"gpu_id": "0",
+	"print_level": 0,
+	"use_pickle": 1,
+	"use_h5": 0,
+	"random_seed": 333,
+	"img_pickle_file": "./cifar_seed_50.pkl",
+	"model_file": "./models/nin_trojan_yellow_square_1_1.h5",
+	" comment": {
+		"previously_completed": [
+			{
+				"model": "./models/nin_trojan_yellow_square_1_1.h5",
+				"result": "both filter and mask check 0.16962945461273193",
+				"time": 58
+			},
+			{
+				"model": "./models/nin_trojan_dark_red_1_1.h5",
+				"result": "both filter and mask check 0.47002196311950684",
+				"time": 53
+			},
+			{
+				"model": "./models/nin_normal_0.9_1.h5",
+				"result": "both filter and mask check 0.16476860642433167",
+				"time": 83
+			}
+			{
+				"model": "./models/nin_trojan_dark_red_yellow_3_2.h5",
+				"result": "both filter and mask check 2.1625356674194336",
+				"time": 57
+			}
+			{
+				"model": "./models/nin_trojan_dark_red_yellow_3_1.h5",
+				"result": "both filter and mask check 0.2814582884311676",
+				"time": 61
+			}
+			{
+				"model": "./models/nin_trojan_dark_red_yellow_3_3.h5",
+				"result": "both filter and mask check 0.18662217259407043",
+				"time": 41
+			},
+			{
+				"model": "./models/nin_trojan_dark_red_2_3.h5",
+				"result": "both filter and mask check 0.10020504146814346",
+				"time": 49
+			},
+			{
+				"model": "./models/nin_trojan_dark_red_2_2.h5",
+				"result": "both filter and mask check 7.089829444885254",
+				"time": 56
+			}
+			{
+				"model": "./models/nin_trojan_dark_red_2_1.h5",
+				"result": "both filter and mask check 2.2980453968048096",
+				"time": 62
+			}
+		]
+	},
+	"channel_last": "True",
+	"num_classes": 10,
+	"w": 32,
+	"h": 32,
+	"reasr_bound": 0.8,
+	"use_resnet": 0,
+	"has_softmax": 1,
+	"_comment": "====Neuron Sampling====",
+	"samp_k": 8,
+	"same_range": 0,
+	"n_samples": 5,
+	"samp_batch_size": 8,
+	"top_n_neurons": 20,
+	"_comment": "====RE Mask====",
+	"max_troj_size": 64,
+	"mask_multi_start": 1,
+	"filter_multi_start": 1,
+	"re_mask_lr": 1e-1,
+	"re_mask_weight": 500
+}
