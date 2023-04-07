@@ -245,14 +245,11 @@ class Detector(AbstractDetector):
         clf = hp.pchoice('my_name',
                          [(0.2, random_forest_classifier('my_name.random_forest_classifier')),
                           (0.2, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
-                          (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
+                          # (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
                           (0.2, sgd_classifier('my_name.sgd_classifier')),
                           (0.2, svc('my_name.svc')),
                           (0.2, xgboost_classification('my_name.xgboost_classification'))
                           ]
-                         )
-        clf = hp.pchoice('my_name',
-                         [(1.0, k_neighbors_classifier('my_name.random_forest_classifier'))]
                          )
         model = HyperoptEstimator(classifier=clf, n_jobs=8, max_evals=10, preprocessing=[])
         model.fit(X, y)
