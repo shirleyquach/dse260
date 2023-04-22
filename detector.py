@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 import pickle
 from os import listdir, makedirs
 from os.path import join, exists, basename
@@ -225,8 +226,8 @@ class Detector(AbstractDetector):
 
         # delete ICA features before storage
         # store layer_transform
-        with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
-            pickle.dump(layer_transform, fp)
+        # with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
+        #     pickle.dump(layer_transform, fp)
         del layer_transform
 
         logging.info("Training detector model...")
