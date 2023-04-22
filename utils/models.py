@@ -1,14 +1,18 @@
+import logging
 import re
 from collections import OrderedDict
+from datetime import datetime
 from os.path import join
 
 import torch
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 
 def create_layer_map(model_repr_dict):
     model_layer_map = {}
-    for (model_class, models) in model_repr_dict.items():
+    for model_class, models in model_repr_dict.items():
         layers = models[0]
         layer_names = list(layers.keys())
         base_layer_names = list(
@@ -77,9 +81,7 @@ def load_models_dirpath(models_dirpath):
     model_ground_truth_dict = {}
 
     for model_path in tqdm(models_dirpath):
-        model, model_repr, model_class = load_model(
-            join(model_path, "model.pt")
-        )
+        model, model_repr, model_class = load_model(join(model_path, "model.pt"))
         model_ground_truth = load_ground_truth(model_path)
 
         # Build the list of models
