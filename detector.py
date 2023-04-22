@@ -1,37 +1,41 @@
 import json
 import logging
 import os
-import time
 import pickle
+import time
+from datetime import datetime
 from os import listdir, makedirs
-from os.path import join, exists, basename
+from os.path import basename, exists, join
 
 import numpy as np
+# from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
+import torch
+from independent_vector_analysis import iva_g, consistent_iva
+from hpsklearn import (HyperoptEstimator, elastic_net,
+                       gradient_boosting_classifier,
+                       gradient_boosting_regressor, k_neighbors_classifier,
+                       linear_regression, logistic_regression,
+                       RandomForestClassifier, random_forest_regressor,
+                       sgd_classifier, svc, xgboost_classification,
+                       xgboost_regression)
+from hyperopt import hp
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-from hpsklearn import HyperoptEstimator, random_forest_classifier, xgboost_classification, \
-    sgd_classifier, svc, gradient_boosting_classifier, k_neighbors_classifier, gradient_boosting_regressor, \
-    linear_regression, elastic_net, logistic_regression, xgboost_regression, random_forest_regressor
-from hyperopt import hp
 
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
-from utils.models import create_layer_map, load_model, load_ground_truth, \
-    load_models_dirpath
+from utils.models import (create_layer_map, load_ground_truth, load_model,
+                          load_models_dirpath)
 from utils.padding import create_models_padding, pad_model
-from utils.reduction import fit_feature_reduction_algorithm_pca_ica, \
-    use_feature_reduction_algorithm_pca_ica
-    # fit_feature_reduction_algorithm,
-    # use_feature_reduction_algorithm,
+from utils.reduction import (fit_feature_reduction_algorithm_pca_ica,
+                             use_feature_reduction_algorithm_pca_ica)
 
-from sklearn.preprocessing import StandardScaler
-# from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
-import torch
+# fit_feature_reduction_algorithm,
+# use_feature_reduction_algorithm,
 
-import time
-from datetime import datetime
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -43,8 +47,14 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
+
 class Detector(AbstractDetector):
-    def __init__(self, metaparameter_filepath, learned_parameters_dirpath, scale_parameters_filepath):
+    def __init__(
+        self,
+        metaparameter_filepath,
+        learned_parameters_dirpath,
+        scale_parameters_filepath,
+    ):
         """Detector initialization function.
 
         Args:
@@ -58,9 +68,15 @@ class Detector(AbstractDetector):
         self.metaparameter_filepath = metaparameter_filepath
         self.learned_parameters_dirpath = learned_parameters_dirpath
         self.model_filepath = join(self.learned_parameters_dirpath, "model.bin")
-        self.models_padding_dict_filepath = join(self.learned_parameters_dirpath, "models_padding_dict.bin")
-        self.model_layer_map_filepath = join(self.learned_parameters_dirpath, "model_layer_map.bin")
-        self.layer_transform_filepath = join(self.learned_parameters_dirpath, "layer_transform.bin")
+        self.models_padding_dict_filepath = join(
+            self.learned_parameters_dirpath, "models_padding_dict.bin"
+        )
+        self.model_layer_map_filepath = join(
+            self.learned_parameters_dirpath, "model_layer_map.bin"
+        )
+        self.layer_transform_filepath = join(
+            self.learned_parameters_dirpath, "layer_transform.bin"
+        )
 
         # TODO: Update skew parameters per round
         self.model_skew = {
@@ -109,17 +125,38 @@ class Detector(AbstractDetector):
             "train_weight_table_params_mean": self.weight_table_params["mean"],
             "train_weight_table_params_std": self.weight_table_params["std"],
             "train_weight_table_params_scaler": self.weight_table_params["scaler"],
-            "train_random_forest_regressor_param_n_estimators": self.random_forest_kwargs["n_estimators"],
-            "train_random_forest_regressor_param_criterion": self.random_forest_kwargs["criterion"],
-            "train_random_forest_regressor_param_max_depth": self.random_forest_kwargs["max_depth"],
-            "train_random_forest_regressor_param_min_samples_split": self.random_forest_kwargs["min_samples_split"],
-            "train_random_forest_regressor_param_min_samples_leaf": self.random_forest_kwargs["min_samples_leaf"],
-            "train_random_forest_regressor_param_min_weight_fraction_leaf": self.random_forest_kwargs["min_weight_fraction_leaf"],
-            "train_random_forest_regressor_param_max_features": self.random_forest_kwargs["max_features"],
-            "train_random_forest_regressor_param_min_impurity_decrease": self.random_forest_kwargs["min_impurity_decrease"],
+            "train_random_forest_regressor_param_n_estimators": self.random_forest_kwargs[
+                "n_estimators"
+            ],
+            "train_random_forest_regressor_param_criterion": self.random_forest_kwargs[
+                "criterion"
+            ],
+            "train_random_forest_regressor_param_max_depth": self.random_forest_kwargs[
+                "max_depth"
+            ],
+            "train_random_forest_regressor_param_min_samples_split": self.random_forest_kwargs[
+                "min_samples_split"
+            ],
+            "train_random_forest_regressor_param_min_samples_leaf": self.random_forest_kwargs[
+                "min_samples_leaf"
+            ],
+            "train_random_forest_regressor_param_min_weight_fraction_leaf": self.random_forest_kwargs[
+                "min_weight_fraction_leaf"
+            ],
+            "train_random_forest_regressor_param_max_features": self.random_forest_kwargs[
+                "max_features"
+            ],
+            "train_random_forest_regressor_param_min_impurity_decrease": self.random_forest_kwargs[
+                "min_impurity_decrease"
+            ],
         }
 
-        with open(join(self.learned_parameters_dirpath, basename(self.metaparameter_filepath)), "w") as fp:
+        with open(
+            join(
+                self.learned_parameters_dirpath, basename(self.metaparameter_filepath)
+            ),
+            "w",
+        ) as fp:
             json.dump(metaparameters, fp, cls=NpEncoder)
 
     def automatic_configure(self, models_dirpath: str):
@@ -130,7 +167,9 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
-        for random_seed in np.random.randint(1000, 9999, 1):  # changes the number of loops on trainer
+        for random_seed in np.random.randint(
+            1000, 9999, 1
+        ):  # changes the number of loops on trainer
             self.weight_table_params["random_seed"] = random_seed
             self.manual_configure(models_dirpath)
 
@@ -146,8 +185,10 @@ class Detector(AbstractDetector):
             makedirs(self.learned_parameters_dirpath)
 
         # List all available model
-        model_path_list = sorted([join(models_dirpath, model) for model in listdir(models_dirpath)])
-        logging.info(f"Loading %d models...", len(model_path_list))
+        model_path_list = sorted(
+            [join(models_dirpath, model) for model in listdir(models_dirpath)]
+        )
+        logging.info("Loading %d models...", len(model_path_list))
 
         model_repr_dict, model_ground_truth_dict = load_models_dirpath(model_path_list)
 
@@ -157,7 +198,9 @@ class Detector(AbstractDetector):
 
         for model_class, model_repr_list in model_repr_dict.items():
             for index, model_repr in enumerate(model_repr_list):
-                model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
+                model_repr_dict[model_class][index] = pad_model(
+                    model_repr, model_class, models_padding_dict
+                )
         del model_repr
         del model_repr_list
 
@@ -176,7 +219,9 @@ class Detector(AbstractDetector):
         logging.info("Models flattened. Fitting feature reduction...")
 
         # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
+        layer_transform = fit_feature_reduction_algorithm_pca_ica(
+            flat_models, self.weight_table_params, self.input_features
+        )
 
         logging.info("Feature reduction applied. Creating feature file...")
         X = None
@@ -184,15 +229,13 @@ class Detector(AbstractDetector):
 
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
-            model_index = 0
-
             logging.info("Parsing %s models...", model_arch)
-            for _ in tqdm(range(len(models))):
+            for model_index, _ in enumerate(tqdm(range(len(models)))):
                 model = models.pop(0)
-                y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
-                model_index += 1
-
-                '''
+                y.append(
+                    model_ground_truth_dict[model_arch][model_index]
+                )  # change to use model_layer_map
+                """
                 model_feats = use_feature_reduction_algorithm(
                     layer_transform[model_arch], model
                 )
@@ -201,27 +244,29 @@ class Detector(AbstractDetector):
                     continue
 
                 X = np.vstack((X, model_feats * self.model_skew["__all__"]))
-                '''
+                """
 
         # stack transformed features
         for model_arch, layers in layer_transform.items():
             arch_feats = None
             for layer, layer_attributes in tqdm(layers.items()):
-                layer_feats = layer_transform[model_arch][layer].pop('ICA_feat')
+                layer_feats = layer_transform[model_arch][layer].pop("ICA_feat")
                 if arch_feats is None:
                     arch_feats = layer_feats
                     continue
                 # horizontal stack each layer
-                arch_feats = np.hstack((arch_feats, layer_feats * self.model_skew["__all__"]))
+                arch_feats = np.hstack(
+                    (arch_feats, layer_feats * self.model_skew["__all__"])
+                )
             # vertical stack samples from each architecture
             if X is None:
                 X = arch_feats
                 continue
             X = np.vstack((X, arch_feats))
 
-        with open(self.learned_parameters_dirpath + 'train.pkl', "wb") as fp:
+        with open(f"{self.learned_parameters_dirpath}train.pkl", "wb") as fp:
             pickle.dump(X, fp)
-        with open(self.learned_parameters_dirpath + 'target.pkl', "wb") as fp:
+        with open(f"{self.learned_parameters_dirpath}target.pkl", "wb") as fp:
             pickle.dump(y, fp)
 
         # delete ICA features before storage
@@ -232,7 +277,7 @@ class Detector(AbstractDetector):
 
         logging.info("Training detector model...")
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
-        '''
+        """
         clf = hp.pchoice('my_name',
                          [(0.2, gradient_boosting_regressor('my_name.gradient_boosting_regressor')),
                           (0.2, linear_regression('my_name.linear_regression')),
@@ -242,17 +287,26 @@ class Detector(AbstractDetector):
                           (0.2, random_forest_regressor('my_name.random_forest_regressor'))
                           ]
                          )
-        '''
-        clf = hp.pchoice('my_name',
-                         [(0.2, random_forest_classifier('my_name.random_forest_classifier')),
-                          (0.2, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
-                          # (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
-                          (0.2, sgd_classifier('my_name.sgd_classifier')),
-                          (0.2, svc('my_name.svc')),
-                          (0.2, xgboost_classification('my_name.xgboost_classification'))
-                          ]
-                         )
-        model = HyperoptEstimator(classifier=clf, n_jobs=8, max_evals=10, preprocessing=[])
+        """
+        clf = hp.pchoice(
+            "my_name",
+            [
+                (0.2, RandomForestClassifier("my_name.random_forest_classifier")),
+                (
+                    0.2,
+                    gradient_boosting_classifier(
+                        "my_name.gradient_boosting_classifier"
+                    ),
+                ),
+                # (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
+                (0.2, sgd_classifier("my_name.sgd_classifier")),
+                (0.2, svc("my_name.svc")),
+                (0.2, xgboost_classification("my_name.xgboost_classification")),
+            ],
+        )
+        model = HyperoptEstimator(
+            classifier=clf, n_jobs=8, max_evals=10, preprocessing=[]
+        )
         model.fit(X, y)
         print(model.score(X, y))
         print(model.best_model())
@@ -282,18 +336,24 @@ class Detector(AbstractDetector):
 
         # Inference on models
         for examples_dir_entry in os.scandir(examples_dirpath):
-            if examples_dir_entry.is_file() and examples_dir_entry.name.endswith(".npy"):
+            if examples_dir_entry.is_file() and examples_dir_entry.name.endswith(
+                ".npy"
+            ):
                 feature_vector = np.load(examples_dir_entry.path).reshape(1, -1)
-                feature_vector = torch.from_numpy(scaler.transform(feature_vector.astype(float))).float()
+                feature_vector = torch.from_numpy(
+                    scaler.transform(feature_vector.astype(float))
+                ).float()
 
                 pred = torch.argmax(model(feature_vector).detach()).item()
 
-                ground_tuth_filepath = examples_dir_entry.path + ".json"
+                ground_tuth_filepath = f"{examples_dir_entry.path}.json"
 
-                with open(ground_tuth_filepath, 'r') as ground_truth_file:
-                    ground_truth =  ground_truth_file.readline()
+                with open(ground_tuth_filepath, "r") as ground_truth_file:
+                    ground_truth = ground_truth_file.readline()
 
-                print("Model: {}, Ground Truth: {}, Prediction: {}".format(examples_dir_entry.name, ground_truth, str(pred)))
+                print(
+                    f"Model: {examples_dir_entry.name}, Ground Truth: {ground_truth}, Prediction: {str(pred)}"
+                )
 
     def infer(
         self,
@@ -317,7 +377,7 @@ class Detector(AbstractDetector):
 
         with open(self.model_layer_map_filepath, "rb") as fp:
             model_layer_map = pickle.load(fp)
-        '''
+        """
         # List all available model and limit to the number provided
         model_path_list = sorted(
             [
@@ -329,10 +389,10 @@ class Detector(AbstractDetector):
 
         model_repr_dict, _ = load_models_dirpath(model_path_list)
         logging.info("Loaded models. Flattenning...")
-        '''
+        """
         with open(self.models_padding_dict_filepath, "rb") as fp:
             models_padding_dict = pickle.load(fp)
-        '''
+        """
         for model_class, model_repr_list in model_repr_dict.items():
             for index, model_repr in enumerate(model_repr_list):
                 model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
@@ -344,25 +404,27 @@ class Detector(AbstractDetector):
         logging.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        '''
+        """
         # List all available test model and limit to the number provided
         test_model_path_list = sorted(
             [
-                join(round_training_dataset_dirpath, 'test_models', model)
-                for model in listdir(join(round_training_dataset_dirpath, 'test_models'))
+                join(round_training_dataset_dirpath, "test_models", model)
+                for model in listdir(
+                    join(round_training_dataset_dirpath, "test_models")
+                )
             ]
         )
 
-        with open(self.learned_parameters_dirpath + 'layer_transform.bin', "rb") as fp:
+        with open(f"{self.learned_parameters_dirpath}layer_transform.bin", "rb") as fp:
             layer_transform = pickle.load(fp)
 
         results = []
         with open(self.model_filepath, "rb") as fp:
             detector_model = pickle.load(fp)
 
-        logging.info(f"Running inference on %d models...", len(test_model_path_list))
+        logging.info("Running inference on %d models...", len(test_model_path_list))
         for test_model in tqdm(test_model_path_list):
-            test_model_filepath = test_model + '/model.pt'
+            test_model_filepath = f"{test_model}/model.pt"
             model, model_repr, model_class = load_model(test_model_filepath)
             model_repr = pad_model(model_repr, model_class, models_padding_dict)
             flat_model = flatten_model(model_repr, model_layer_map[model_class])
@@ -372,7 +434,9 @@ class Detector(AbstractDetector):
             # self.inference_on_example_data(model, examples_dirpath)
 
             X = (
-                use_feature_reduction_algorithm_pca_ica(layer_transform[model_class], flat_model)
+                use_feature_reduction_algorithm_pca_ica(
+                    layer_transform[model_class], flat_model
+                )
                 * self.model_skew["__all__"]
             )
 
@@ -389,18 +453,29 @@ class Detector(AbstractDetector):
         # log the results
         run_time = str(time.time() - start_time)
         test_count = len(test_model_path_list)
-        st_str = datetime.fromtimestamp(start_time).strftime('%Y%m%d_%H:%M:%S')
-        fn = 'results_' + st_str + '.csv'
+        st_str = datetime.fromtimestamp(start_time).strftime("%Y%m%d_%H:%M:%S")
+        fn = f"results_{st_str}.csv"
         dm_str = str(detector_model)
 
         # calculate metrics
         results = np.asarray(results)
         y_true = results[:, 2].astype(int)
-        y_pred = results[:, 1].astype(float).round().astype(int)  # convert probability to class
-        target_names = ['clean', 'trojan']
-        c_report = classification_report(y_true, y_pred, target_names=target_names, output_dict=True) # save dictionary of report
+        y_pred = (
+            results[:, 1].astype(float).round().astype(int)
+        )  # convert probability to class
+        target_names = ["clean", "trojan"]
+        c_report = classification_report(
+            y_true, y_pred, target_names=target_names, output_dict=True
+        )  # save dictionary of report
         print(classification_report(y_true, y_pred, target_names=target_names))
         test_log = [run_time, test_count, dm_str, fn, c_report]
 
-        np.savetxt('./results/results_' + st_str + '.csv', results, delimiter=", ", fmt='% s')
-        np.savetxt('./results/result_info' + st_str + '.csv', test_log, delimiter=", ", fmt='% s')
+        np.savetxt(
+            f"./results/results_{st_str}.csv", results, delimiter=", ", fmt="% s"
+        )
+        np.savetxt(
+            f"./results/result_info{st_str}.csv",
+            test_log,
+            delimiter=", ",
+            fmt="% s",
+        )
