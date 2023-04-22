@@ -47,7 +47,7 @@ def load_model(model_filepath: str) -> (dict, str):
     Returns:
         model, dict, str - Torch model + dictionary representation of the model + model class name
     """
-    model = torch.load(model_filepath, map_location=torch.device('cpu'))
+    model = torch.load(model_filepath, map_location=torch.device('cuda'))
     model_class = model.__class__.__name__
     model_repr = OrderedDict(
         {layer: tensor.cpu().numpy() for (layer, tensor) in model.state_dict().items()}
