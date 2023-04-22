@@ -11,11 +11,11 @@ import numpy as np
 # from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
 from independent_vector_analysis import iva_g, consistent_iva
-from hpsklearn import (HyperoptEstimator, elastic_net,
-                       gradient_boosting_classifier,
-                       gradient_boosting_regressor, k_neighbors_classifier,
-                       linear_regression, logistic_regression,
-                       RandomForestClassifier, random_forest_regressor,
+from hpsklearn import (HyperoptEstimator, ElasticNet,
+                       GradientBoostingClassifier,
+                       GradientBoostingRegressor, KNeighborsClassifier,
+                       LinearRegression, LogisticRegression,
+                       RandomForestClassifier, RandomForestRegressor,
                        sgd_classifier, svc, xgboost_classification,
                        xgboost_regression)
 from hyperopt import hp
@@ -294,7 +294,7 @@ class Detector(AbstractDetector):
                 (0.2, RandomForestClassifier("my_name.random_forest_classifier")),
                 (
                     0.2,
-                    gradient_boosting_classifier(
+                    GradientBoostingClassifier(
                         "my_name.gradient_boosting_classifier"
                     ),
                 ),
