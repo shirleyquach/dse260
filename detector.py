@@ -214,6 +214,9 @@ class Detector(AbstractDetector):
 
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
+
+        breakpoint()
+
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
