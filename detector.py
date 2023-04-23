@@ -10,12 +10,11 @@ from os.path import basename, exists, join
 import numpy as np
 # from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
-from independent_vector_analysis import iva_g, consistent_iva
-from hpsklearn import (HyperoptEstimator, ElasticNet,
-                       GradientBoostingClassifier,
-                       GradientBoostingRegressor, KNeighborsClassifier,
-                       LinearRegression, LogisticRegression,
-                       RandomForestClassifier, RandomForestRegressor,
+from hpsklearn import (HyperoptEstimator, elastic_net,
+                       gradient_boosting_classifier,
+                       gradient_boosting_regressor, k_neighbors_classifier,
+                       linear_regression, logistic_regression,
+                       random_forest_classifier, random_forest_regressor,
                        sgd_classifier, svc, xgboost_classification,
                        xgboost_regression)
 from hyperopt import hp
@@ -229,12 +228,16 @@ class Detector(AbstractDetector):
 
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
+            model_index = 0
+
             logging.info("Parsing %s models...", model_arch)
-            for model_index, _ in enumerate(tqdm(range(len(models)))):
+            for _ in tqdm(range(len(models))):
                 model = models.pop(0)
                 y.append(
                     model_ground_truth_dict[model_arch][model_index]
                 )  # change to use model_layer_map
+                model_index += 1
+
                 """
                 model_feats = use_feature_reduction_algorithm(
                     layer_transform[model_arch], model
@@ -264,15 +267,15 @@ class Detector(AbstractDetector):
                 continue
             X = np.vstack((X, arch_feats))
 
-        with open(f"{self.learned_parameters_dirpath}train.pkl", "wb") as fp:
+        with open(self.learned_parameters_dirpath + "train.pkl", "wb") as fp:
             pickle.dump(X, fp)
-        with open(f"{self.learned_parameters_dirpath}target.pkl", "wb") as fp:
+        with open(self.learned_parameters_dirpath + "target.pkl", "wb") as fp:
             pickle.dump(y, fp)
 
         # delete ICA features before storage
         # store layer_transform
-        # with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
-        #     pickle.dump(layer_transform, fp)
+        with open(self.learned_parameters_dirpath + "layer_transform.bin", "wb") as fp:
+            pickle.dump(layer_transform, fp)
         del layer_transform
 
         logging.info("Training detector model...")
@@ -291,10 +294,10 @@ class Detector(AbstractDetector):
         clf = hp.pchoice(
             "my_name",
             [
-                (0.2, RandomForestClassifier("my_name.random_forest_classifier")),
+                (0.2, random_forest_classifier("my_name.random_forest_classifier")),
                 (
                     0.2,
-                    GradientBoostingClassifier(
+                    gradient_boosting_classifier(
                         "my_name.gradient_boosting_classifier"
                     ),
                 ),
@@ -346,13 +349,15 @@ class Detector(AbstractDetector):
 
                 pred = torch.argmax(model(feature_vector).detach()).item()
 
-                ground_tuth_filepath = f"{examples_dir_entry.path}.json"
+                ground_tuth_filepath = examples_dir_entry.path + ".json"
 
                 with open(ground_tuth_filepath, "r") as ground_truth_file:
                     ground_truth = ground_truth_file.readline()
 
                 print(
-                    f"Model: {examples_dir_entry.name}, Ground Truth: {ground_truth}, Prediction: {str(pred)}"
+                    "Model: {}, Ground Truth: {}, Prediction: {}".format(
+                        examples_dir_entry.name, ground_truth, str(pred)
+                    )
                 )
 
     def infer(
@@ -415,16 +420,16 @@ class Detector(AbstractDetector):
             ]
         )
 
-        with open(f"{self.learned_parameters_dirpath}layer_transform.bin", "rb") as fp:
+        with open(self.learned_parameters_dirpath + "layer_transform.bin", "rb") as fp:
             layer_transform = pickle.load(fp)
 
         results = []
         with open(self.model_filepath, "rb") as fp:
             detector_model = pickle.load(fp)
 
-        logging.info("Running inference on %d models...", len(test_model_path_list))
+        logging.info(f"Running inference on %d models...", len(test_model_path_list))
         for test_model in tqdm(test_model_path_list):
-            test_model_filepath = f"{test_model}/model.pt"
+            test_model_filepath = test_model + "/model.pt"
             model, model_repr, model_class = load_model(test_model_filepath)
             model_repr = pad_model(model_repr, model_class, models_padding_dict)
             flat_model = flatten_model(model_repr, model_layer_map[model_class])
@@ -454,7 +459,7 @@ class Detector(AbstractDetector):
         run_time = str(time.time() - start_time)
         test_count = len(test_model_path_list)
         st_str = datetime.fromtimestamp(start_time).strftime("%Y%m%d_%H:%M:%S")
-        fn = f"results_{st_str}.csv"
+        fn = "results_" + st_str + ".csv"
         dm_str = str(detector_model)
 
         # calculate metrics
@@ -471,10 +476,10 @@ class Detector(AbstractDetector):
         test_log = [run_time, test_count, dm_str, fn, c_report]
 
         np.savetxt(
-            f"./results/results_{st_str}.csv", results, delimiter=", ", fmt="% s"
+            "./results/results_" + st_str + ".csv", results, delimiter=", ", fmt="% s"
         )
         np.savetxt(
-            f"./results/result_info{st_str}.csv",
+            "./results/result_info" + st_str + ".csv",
             test_log,
             delimiter=", ",
             fmt="% s",
