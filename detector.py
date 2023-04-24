@@ -215,8 +215,6 @@ class Detector(AbstractDetector):
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
 
-        breakpoint()
-
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
@@ -253,10 +251,21 @@ class Detector(AbstractDetector):
                 """
 
         # stack transformed features
+        arch_feature_map = {}
+        model_arch_list = layer_transform.keys()
+        for arch_id, model_arch in enumerate(model_arch_list):
+            arch_feature_map[model_arch] = arch_id
+            
         for model_arch, layers in layer_transform.items():
             arch_feats = None
+            breakpoint()
             for layer, layer_attributes in tqdm(layers.items()):
                 layer_feats = layer_transform[model_arch][layer].pop("ICA_feat")
+
+                layer_shape = layer_feats.shape[1]
+                arch_id = np.array([arch_feature_map[model_arch]] * layer_shape)
+
+                layer_feats = np.vstack((layer_feats,arch_id))
                 if arch_feats is None:
                     arch_feats = layer_feats
                     continue
@@ -270,6 +279,7 @@ class Detector(AbstractDetector):
                 continue
             X = np.vstack((X, arch_feats))
 
+        logging.info(f"Saving training data {self.learned_parameters_dirpath + 'train.pkl'}")
         with open(self.learned_parameters_dirpath + "train.pkl", "wb") as fp:
             pickle.dump(X, fp)
         with open(self.learned_parameters_dirpath + "target.pkl", "wb") as fp:

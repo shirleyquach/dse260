@@ -55,20 +55,26 @@ def fit_feature_reduction_algorithm_pca_ica(model_dict, weight_table_params, inp
 
     for (model_arch, models) in model_dict.items():
         layers_output = feature_reduction(models[0], weight_table, input_features)
+
         layer_transform[model_arch] = {}
+        arch = layer_transform[model_arch]
+
         for (layers, output) in tqdm(layers_output.items()):
-            layer_transform[model_arch][layers] = {}
-            layer_transform[model_arch][layers]['ICA'] = init_feature_reduction(output)
+            arch[layers] = {}
+            layer_dict = arch[layers]
+
+            layer_dict['ICA'] = init_feature_reduction(output)
             s = np.stack([model[layers] for model in models])
-            pca = PCA()
-            layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit
+            pca = PCA(whiten=True)
+            layer_dict['PCA'] = pca.fit(s)  # store PCA fit
             s = pca.transform(s)
-            layer_transform[model_arch][layers]['ICA'].fit(s)  # store ICA fit
-            layer_transform[model_arch][layers]['ICA_feat'] = layer_transform[model_arch][layers]['ICA'].transform(s)  # store the transformed features
+            layer_dict['ICA'].fit(s)  # store ICA fit
+            layer_dict['ICA_feat'] = layer_dict['ICA'].transform(s)  # store the transformed features
 
             # remove layer
             for model in models:
                 del model[layers]
+    breakpoint()
     return layer_transform
 
 

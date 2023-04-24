@@ -170,7 +170,8 @@ A small toy set of clean & poisioned data is also provided in this repository un
 
     - `conda install cuda -c "nvidia/label/cuda-11.6.2"`
     - `conda install pytorch=1.13.1 -c pytorch`
-    - `pip install tqdm jsonschema jsonargparse scikit-learn independent_vector_analysis hpsklearn`
+    - `pip install tqdm jsonschema jsonargparse scikit-learn independent_vector_analysis xgboost`
+    - `pip install git+https://github.com/hyperopt/hyperopt-sklearn`
 
 ## Test Fake Detector Without Containerization
 
