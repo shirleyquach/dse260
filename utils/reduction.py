@@ -74,7 +74,6 @@ def fit_feature_reduction_algorithm_pca_ica(model_dict, weight_table_params, inp
             # remove layer
             for model in models:
                 del model[layers]
-    breakpoint()
     return layer_transform
 
 

@@ -185,7 +185,7 @@ class Detector(AbstractDetector):
 
         # List all available model
         model_path_list = sorted(
-            [join(models_dirpath, model) for model in listdir(models_dirpath)]
+                [join(models_dirpath, model) for model in listdir(models_dirpath)]
         )
         logging.info("Loading %d models...", len(model_path_list))
 
@@ -258,14 +258,9 @@ class Detector(AbstractDetector):
             
         for model_arch, layers in layer_transform.items():
             arch_feats = None
-            breakpoint()
             for layer, layer_attributes in tqdm(layers.items()):
                 layer_feats = layer_transform[model_arch][layer].pop("ICA_feat")
 
-                layer_shape = layer_feats.shape[1]
-                arch_id = np.array([arch_feature_map[model_arch]] * layer_shape)
-
-                layer_feats = np.vstack((layer_feats,arch_id))
                 if arch_feats is None:
                     arch_feats = layer_feats
                     continue
@@ -273,10 +268,18 @@ class Detector(AbstractDetector):
                 arch_feats = np.hstack(
                     (arch_feats, layer_feats * self.model_skew["__all__"])
                 )
+
+            arch_shape = arch_feats.shape[0]
+            arch_id = arch_id = np.array([arch_feature_map[model_arch]] * arch_shape)
+            arch_feats = np.column_stack((arch_feats, arch_id))
+
             # vertical stack samples from each architecture
             if X is None:
                 X = arch_feats
                 continue
+            
+
+            breakpoint()
             X = np.vstack((X, arch_feats))
 
         logging.info(f"Saving training data {self.learned_parameters_dirpath + 'train.pkl'}")
@@ -287,52 +290,52 @@ class Detector(AbstractDetector):
 
         # delete ICA features before storage
         # store layer_transform
-        with open(self.learned_parameters_dirpath + "layer_transform.bin", "wb") as fp:
-            pickle.dump(layer_transform, fp)
-        del layer_transform
+        # with open(self.learned_parameters_dirpath + "layer_transform.bin", "wb") as fp:
+        #     pickle.dump(layer_transform, fp)
+        # del layer_transform
 
-        logging.info("Training detector model...")
-        # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
-        """
-        clf = hp.pchoice('my_name',
-                         [(0.2, gradient_boosting_regressor('my_name.gradient_boosting_regressor')),
-                          (0.2, linear_regression('my_name.linear_regression')),
-                          (0.2, elastic_net('my_name.elastic_net')),
-                          (0.2, logistic_regression('my_name.logistic_regression')),
-                          (0.2, xgboost_regression('my_name.xgboost_regression')),
-                          (0.2, random_forest_regressor('my_name.random_forest_regressor'))
-                          ]
-                         )
-        """
-        clf = hp.pchoice(
-            "my_name",
-            [
-                (0.2, random_forest_classifier("my_name.random_forest_classifier")),
-                (
-                    0.2,
-                    gradient_boosting_classifier(
-                        "my_name.gradient_boosting_classifier"
-                    ),
-                ),
-                # (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
-                (0.2, sgd_classifier("my_name.sgd_classifier")),
-                (0.2, svc("my_name.svc")),
-                (0.2, xgboost_classification("my_name.xgboost_classification")),
-            ],
-        )
-        model = HyperoptEstimator(
-            classifier=clf, n_jobs=8, max_evals=10, preprocessing=[]
-        )
-        model.fit(X, y)
-        print(model.score(X, y))
-        print(model.best_model())
+        # logging.info("Training detector model...")
+        # # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
+        # """
+        # clf = hp.pchoice('my_name',
+        #                  [(0.2, gradient_boosting_regressor('my_name.gradient_boosting_regressor')),
+        #                   (0.2, linear_regression('my_name.linear_regression')),
+        #                   (0.2, elastic_net('my_name.elastic_net')),
+        #                   (0.2, logistic_regression('my_name.logistic_regression')),
+        #                   (0.2, xgboost_regression('my_name.xgboost_regression')),
+        #                   (0.2, random_forest_regressor('my_name.random_forest_regressor'))
+        #                   ]
+        #                  )
+        # """
+        # clf = hp.pchoice(
+        #     "my_name",
+        #     [
+        #         (0.2, random_forest_classifier("my_name.random_forest_classifier")),
+        #         (
+        #             0.2,
+        #             gradient_boosting_classifier(
+        #                 "my_name.gradient_boosting_classifier"
+        #             ),
+        #         ),
+        #         # (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
+        #         (0.2, sgd_classifier("my_name.sgd_classifier")),
+        #         (0.2, svc("my_name.svc")),
+        #         (0.2, xgboost_classification("my_name.xgboost_classification")),
+        #     ],
+        # )
+        # model = HyperoptEstimator(
+        #     classifier=clf, n_jobs=8, max_evals=10, preprocessing=[]
+        # )
+        # model.fit(X, y)
+        # print(model.score(X, y))
+        # print(model.best_model())
 
-        logging.info("Saving RandomForestRegressor model...")
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(model, fp)
+        # logging.info("Saving RandomForestRegressor model...")
+        # with open(self.model_filepath, "wb") as fp:
+        #     pickle.dump(model, fp)
 
-        self.write_metaparameters()
-        logging.info("Configuration done!")
+        # self.write_metaparameters()
+        # logging.info("Configuration done!")
 
     def inference_on_example_data(self, model, examples_dirpath):
         """Method to demonstrate how to inference on a round's example data.
