@@ -174,14 +174,16 @@ class Detector(AbstractDetector):
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
-        # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
-        #layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
-        layer_transform = fit_feature_reduction_algorithm_pca_model_ica(flat_models, self.weight_table_params, self.input_features)
-
-        logging.info("Feature reduction applied. Creating feature file...")
+        layer_transform = None
         X = None
         y = []
+        # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
+        # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
+        # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
+        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, self.weight_table_params, self.input_features)
+
+        logging.info("Feature reduction applied. Creating feature file...")
+
 
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
@@ -203,33 +205,32 @@ class Detector(AbstractDetector):
 
                 X = np.vstack((X, model_feats * self.model_skew["__all__"]))
                 '''
-
-        # stack transformed features
-        for model_arch, layers in layer_transform.items():
-            arch_feats = None
-            for layer, layer_attributes in tqdm(layers.items()):
-                layer_feats = layer_transform[model_arch][layer].pop('ICA_feat')
-                if arch_feats is None:
-                    arch_feats = layer_feats
+        if X is None:
+            # stack transformed features
+            for model_arch, layers in layer_transform.items():
+                arch_feats = None
+                for layer, layer_attributes in tqdm(layers.items()):
+                    layer_feats = layer_transform[model_arch][layer].pop('ICA_feat')
+                    if arch_feats is None:
+                        arch_feats = layer_feats
+                        continue
+                    # horizontal stack each layer
+                    arch_feats = np.hstack((arch_feats, layer_feats * self.model_skew["__all__"]))
+                # vertical stack samples from each architecture
+                if X is None:
+                    X = arch_feats
                     continue
-                # horizontal stack each layer
-                arch_feats = np.hstack((arch_feats, layer_feats * self.model_skew["__all__"]))
-            # vertical stack samples from each architecture
-            if X is None:
-                X = arch_feats
-                continue
-            X = np.vstack((X, arch_feats))
+                X = np.vstack((X, arch_feats))
+                # delete ICA features before storage
+                # store layer_transform
+            with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
+                pickle.dump(layer_transform, fp)
+            del layer_transform
 
         with open(self.learned_parameters_dirpath + 'train.pkl', "wb") as fp:
             pickle.dump(X, fp)
         with open(self.learned_parameters_dirpath + 'target.pkl', "wb") as fp:
             pickle.dump(y, fp)
-
-        # delete ICA features before storage
-        # store layer_transform
-        with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
-            pickle.dump(layer_transform, fp)
-        del layer_transform
 
         logging.info("Training detector model...")
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
