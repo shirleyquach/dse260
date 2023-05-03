@@ -20,8 +20,8 @@ from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, load_ground_truth, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
-from utils.reduction import fit_feature_reduction_algorithm_pca_ica, \
-    use_feature_reduction_algorithm_pca_ica
+from utils.reduction import fit_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_final_layer, \
+    use_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_pca_model_ica
     # fit_feature_reduction_algorithm,
     # use_feature_reduction_algorithm,
 
@@ -175,7 +175,9 @@ class Detector(AbstractDetector):
         logging.info("Models flattened. Fitting feature reduction...")
 
         # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
+        # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
+        #layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
+        layer_transform = fit_feature_reduction_algorithm_pca_model_ica(flat_models, self.weight_table_params, self.input_features)
 
         logging.info("Feature reduction applied. Creating feature file...")
         X = None
@@ -241,28 +243,28 @@ class Detector(AbstractDetector):
                           (0.2, random_forest_regressor('my_name.random_forest_regressor'))
                           ]
                          )
-        '''
-        clf = hp.pchoice('my_name',
-                         [(0.2, random_forest_classifier('my_name.random_forest_classifier')),
-                          (0.2, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
-                          (0.2, k_neighbors_classifier('my_name.k_neighbors_classifier')),
-                          (0.2, sgd_classifier('my_name.sgd_classifier')),
-                          (0.2, svc('my_name.svc')),
-                          (0.2, xgboost_classification('my_name.xgboost_classification'))
-                          ]
-                         )
+        
         clf = hp.pchoice('my_name',
                          [(1.0, k_neighbors_classifier('my_name.random_forest_classifier'))]
                          )
-        model = HyperoptEstimator(classifier=clf, n_jobs=8, max_evals=10, preprocessing=[])
+        
+        clf = hp.pchoice('my_name',
+                         [(0.3, random_forest_classifier('my_name.random_forest_classifier')),
+                          (0.3, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
+                          (0.4, sgd_classifier('my_name.sgd_classifier'))
+                          #(0.2, svc('my_name.svc')),
+                          #(0.4, xgboost_classification('my_name.xgboost_classification'))
+                          ]
+                         )
+        model = HyperoptEstimator(classifier=clf, n_jobs=16, max_evals=100, preprocessing=[])
         model.fit(X, y)
         print(model.score(X, y))
         print(model.best_model())
 
-        logging.info("Saving RandomForestRegressor model...")
+        logging.info("Saving model...")
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(model, fp)
-
+        '''
         self.write_metaparameters()
         logging.info("Configuration done!")
 
