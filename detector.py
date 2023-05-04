@@ -180,7 +180,16 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
-        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, self.weight_table_params, self.input_features)
+
+        possible_values = [6,7,8,9,10,11,12,13]
+        for input_features in possible_values:
+            num_components = 30
+            X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, num_components, self.weight_table_params, input_features)
+
+            with open(self.learned_parameters_dirpath + f'2023-05-03_train_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
+                pickle.dump(X, fp)
+            with open(self.learned_parameters_dirpath + f'2023-05-03_target_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
+                pickle.dump(y, fp)
 
         logging.info("Feature reduction applied. Creating feature file...")
 
@@ -227,10 +236,6 @@ class Detector(AbstractDetector):
                 pickle.dump(layer_transform, fp)
             del layer_transform
 
-        with open(self.learned_parameters_dirpath + 'train.pkl', "wb") as fp:
-            pickle.dump(X, fp)
-        with open(self.learned_parameters_dirpath + 'target.pkl', "wb") as fp:
-            pickle.dump(y, fp)
 
         logging.info("Training detector model...")
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)

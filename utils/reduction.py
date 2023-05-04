@@ -113,7 +113,7 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
                 del model[layers]
     return layer_transform
 
-def fit_feature_reduction_algorithm_pca_model_ica(model_dict, weight_table_params, input_features):
+def fit_feature_reduction_algorithm_pca_model_ica(model_dict, num_components, weight_table_params, input_features):
     layer_transform = {}
     weight_table = init_weight_table(**weight_table_params)
     model_transform = None
@@ -123,7 +123,7 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, weight_table_param
         for (layers, output) in tqdm(layers_output.items()):
             layer_transform[model_arch][layers] = {}
             s = np.stack([model[layers] for model in models])
-            pca = PCA(n_components=30, whiten=True)
+            pca = PCA(n_components=num_components, whiten=True)
             layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit
             layer_transform[model_arch][layers]['PCA_feat'] = pca.transform(s)  # store the PCA transformed features
 
