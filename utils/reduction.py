@@ -112,18 +112,18 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
                 del model[layers]
     return layer_transform
 
-def fit_feature_reduction_algorithm_pca_model_ica(model_dict, pca_component, ica_component, weight_params, input_features, kernel):
+def fit_feature_reduction_algorithm_pca_model_ica(model_dict, pca_component, ica_component, kernel):
     layer_transform = {}
-    weight_table = init_weight_table(**weight_table_params)
+    # weight_table = init_weight_table(**weight_table_params)
     model_transform = None
     for (model_arch, models) in model_dict.items():
         # layers_output = feature_reduction(models[0], weight_table, input_features)
         layer_transform[model_arch] = {}
-        for (layers, output) in models.items():
+        for layers in models[0].keys():
             layer_transform[model_arch][layers] = {}
             s = np.stack([model[layers] for model in models])
-            pca = KernelPCA(n_components=pca_component, kernel=kernel)
-            # pca = KernelPCA(n_components=pca_component, whiten=True)
+            pca = KernelPCA(n_components=pca_component, kernel=kernel,)
+            # pca = PCA(n_components=pca_component, whiten=True)
             layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit
             layer_transform[model_arch][layers]['PCA_feat'] = pca.transform(s)  # store the PCA transformed features
 
@@ -139,5 +139,9 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, pca_component, ica
         if model_transform is None:
             model_transform = s
             continue
-        model_transform = np.vstack((model_transform, s))
+        try:
+            model_transform = np.vstack((model_transform, s))
+        except Exception me1:
+            print(me1)
+
     return model_transform

@@ -146,7 +146,7 @@ class Detector(AbstractDetector):
 
         # List all available model
         model_path_list = sorted([join(models_dirpath, model) for model in listdir(models_dirpath)])
-        logging.info(f"Loading %d models...", len(model_path_list))
+        # logger.info(f"Loading %d models...", len(model_path_list))
 
         model_repr_dict, model_ground_truth_dict = load_models_dirpath(model_path_list)
 
@@ -163,16 +163,16 @@ class Detector(AbstractDetector):
         check_models_consistency(model_repr_dict)
 
         # Build model layer map to know how to flatten
-        logging.info("Generating model layer map...")
+        # logger.info("Generating model layer map...")
         model_layer_map = create_layer_map(model_repr_dict)
         with open(self.model_layer_map_filepath, "wb") as fp:
             pickle.dump(model_layer_map, fp)
-        logging.info("Generated model layer map. Flattenning models...")
+        # logger.info("Generated model layer map. Flattenning models...")
 
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
+        # logger.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = None
         X = None
@@ -180,34 +180,37 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
+
+        pca_components = [1, 2, 10, 25, 30,35]
+        ica_components = [2, 5,10,15]
+        for kernel in ['poly', 'rbf', 'sigmoid', 'cosine']:
+        #pca_components = [10]
+        #ica_components = [5]
+        #for kernel in ['poly']:
+            for ica_component in ica_components:
+                for pca_component in pca_components:
+                    try:
+                        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, kernel=kernel)
+
+                        with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{pca_component}_ica_{ica_component}_kernel_{kernel}.pkl', "wb") as fp:
+                            pickle.dump(X, fp)
+                    except Exception as er1:
+                        print(f"Failed - PCA: {pca_component}, ICA: {ica_component}, kernel:{kernel}\n{er1}")
+
+                print("Feature reduction applied. Creating feature file...")
+
+
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
             model_index = 0
 
-            logging.info("Parsing %s models...", model_arch)
+            # logger.info("Parsing %s models...", model_arch)
             for _ in tqdm(range(len(models))):
                 model = models.pop(0)
                 y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
         with open(self.learned_parameters_dirpath + f'2023-05-05_target_num_pca_ica.pkl', "wb") as fp:
             pickle.dump(y, fp)
-
-        pca_components = [0.9, 2, 10, 25, 30,35]
-        ica_components = [2, 5,10,15]
-        for kernel in ['poly', 'rbf', 'sigmoid', 'cosine']
-            for ica_component in ica_components:
-                for pca_component in pca_components:
-                    try:
-                        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, weight_params=self.weight_table_params, input_features=input_features, kernel=kernel)
-
-                        with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{num_components}_ica_{input_features}_kernel_{kernel}.pkl', "wb") as fp:
-                            pickle.dump(X, fp)
-                    except:
-                        logger.error(f"PCA: {pca_component}, ICA: {ica_component}, kernel:{kernel}")
-
-                logging.info("Feature reduction applied. Creating feature file...")
-
-
 
             '''
             model_feats = use_feature_reduction_algorithm(
@@ -242,7 +245,7 @@ class Detector(AbstractDetector):
             del layer_transform
 
 
-        logging.info("Training detector model...")
+        print("Training detector model...")
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
         '''
         clf = hp.pchoice('my_name',
@@ -272,12 +275,11 @@ class Detector(AbstractDetector):
         print(model.score(X, y))
         print(model.best_model())
 
-        logging.info("Saving model...")
+        logger.info("Saving model...")
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(model, fp)
         '''
         self.write_metaparameters()
-        logging.info("Configuration done!")
 
     def inference_on_example_data(self, model, examples_dirpath):
         """Method to demonstrate how to inference on a round's example data.
@@ -340,10 +342,10 @@ class Detector(AbstractDetector):
                 for model in listdir(join(round_training_dataset_dirpath, 'models'))
             ]
         )
-        logging.info(f"Loading %d models...", len(model_path_list))
+        logger.info(f"Loading %d models...", len(model_path_list))
 
         model_repr_dict, _ = load_models_dirpath(model_path_list)
-        logging.info("Loaded models. Flattenning...")
+        logger.info("Loaded models. Flattenning...")
         '''
         with open(self.models_padding_dict_filepath, "rb") as fp:
             models_padding_dict = pickle.load(fp)
@@ -356,7 +358,7 @@ class Detector(AbstractDetector):
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
         del model_repr
-        logging.info("Models flattened. Fitting feature reduction...")
+        logger.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
         '''
@@ -375,7 +377,7 @@ class Detector(AbstractDetector):
         with open(self.model_filepath, "rb") as fp:
             detector_model = pickle.load(fp)
 
-        logging.info(f"Running inference on %d models...", len(test_model_path_list))
+        print(f"Running inference on %d models...", len(test_model_path_list))
         for test_model in tqdm(test_model_path_list):
             test_model_filepath = test_model + '/model.pt'
             model, model_repr, model_class = load_model(test_model_filepath)
@@ -398,7 +400,7 @@ class Detector(AbstractDetector):
 
             ground_truth = load_ground_truth(test_model)
 
-            # logging.info("Trojan probability: %s", probability)
+            # logger.info("Trojan probability: %s", probability)
             results.append([test_model[-11:], probability, ground_truth])
 
         # log the results
