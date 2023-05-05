@@ -68,8 +68,8 @@ def fit_feature_reduction_algorithm_pca_ica(model_dict, weight_table_params, inp
             layer_transform[model_arch][layers]['ICA_feat'] = layer_transform[model_arch][layers]['ICA'].transform(s)  # store the transformed features
 
             # remove layer
-            for model in models:
-                del model[layers]
+            # for model in models:
+            #     del model[layers]
     return layer_transform
 
 def use_feature_reduction_algorithm(layer_transform, model):
@@ -113,28 +113,28 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
                 del model[layers]
     return layer_transform
 
-def fit_feature_reduction_algorithm_pca_model_ica(model_dict, num_components, weight_table_params, input_features):
+def fit_feature_reduction_algorithm_pca_model_ica(model_dict, pca_component, ica_component, weight_params, input_features):
     layer_transform = {}
     weight_table = init_weight_table(**weight_table_params)
     model_transform = None
     for (model_arch, models) in model_dict.items():
-        layers_output = feature_reduction(models[0], weight_table, input_features)
+        # layers_output = feature_reduction(models[0], weight_table, input_features)
         layer_transform[model_arch] = {}
-        for (layers, output) in tqdm(layers_output.items()):
+        for (layers, output) in models.items():
             layer_transform[model_arch][layers] = {}
             s = np.stack([model[layers] for model in models])
-            pca = PCA(n_components=num_components, whiten=True)
+            pca = PCA(n_components=pca_component, whiten=True)
             layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit
             layer_transform[model_arch][layers]['PCA_feat'] = pca.transform(s)  # store the PCA transformed features
 
             # remove layer
-            for model in models:
-                del model[layers]
+            #for model in models:
+            #    del model[layers]
         # perform ica at model level
         s = np.hstack([layer_transform[model_arch][l]['PCA_feat'] for l in layer_transform[model_arch]])
         for l in layer_transform[model_arch]:
             del layer_transform[model_arch][l]['PCA_feat']
-        ica = FastICA(n_components=input_features)
+        ica = FastICA(n_components=ica_component)
         s = ica.fit_transform(s)
         if model_transform is None:
             model_transform = s

@@ -180,20 +180,6 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
-
-        possible_values = [6,7,8,9,10,11,12,13]
-        for input_features in possible_values:
-            num_components = 30
-            X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, num_components, self.weight_table_params, input_features)
-
-            with open(self.learned_parameters_dirpath + f'2023-05-03_train_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
-                pickle.dump(X, fp)
-            with open(self.learned_parameters_dirpath + f'2023-05-03_target_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
-                pickle.dump(y, fp)
-
-        logging.info("Feature reduction applied. Creating feature file...")
-
-
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
             model_index = 0
@@ -203,17 +189,35 @@ class Detector(AbstractDetector):
                 model = models.pop(0)
                 y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
+        with open(self.learned_parameters_dirpath + f'2023-05-05_target_num_pca_ica.pkl', "wb") as fp:
+            pickle.dump(y, fp)
 
-                '''
-                model_feats = use_feature_reduction_algorithm(
-                    layer_transform[model_arch], model
-                )
-                if X is None:
-                    X = model_feats
-                    continue
+        pca_components = [0.9, 2, 10, 25, 30,35]
+        ica_components = [6,7,8,9,10,11,12,13]
+        for ica_component in ica_components:
+            for pca_component in pca_components:
+                try:
+                    X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, weight_params=self.weight_table_params, input_features=input_features)
 
-                X = np.vstack((X, model_feats * self.model_skew["__all__"]))
-                '''
+                    with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
+                        pickle.dump(X, fp)
+                except:
+                    logger.error(f"PCA: {pca_component}, ICA: {ica_component}")
+
+            logging.info("Feature reduction applied. Creating feature file...")
+
+
+
+            '''
+            model_feats = use_feature_reduction_algorithm(
+                layer_transform[model_arch], model
+            )
+            if X is None:
+                X = model_feats
+                continue
+
+            X = np.vstack((X, model_feats * self.model_skew["__all__"]))
+            '''
         if X is None:
             # stack transformed features
             for model_arch, layers in layer_transform.items():
