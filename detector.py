@@ -193,18 +193,19 @@ class Detector(AbstractDetector):
             pickle.dump(y, fp)
 
         pca_components = [0.9, 2, 10, 25, 30,35]
-        ica_components = [6,7,8,9,10,11,12,13]
-        for ica_component in ica_components:
-            for pca_component in pca_components:
-                try:
-                    X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, weight_params=self.weight_table_params, input_features=input_features)
+        ica_components = [2, 5,10,15]
+        for kernel in ['poly', 'rbf', 'sigmoid', 'cosine']
+            for ica_component in ica_components:
+                for pca_component in pca_components:
+                    try:
+                        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, weight_params=self.weight_table_params, input_features=input_features, kernel=kernel)
 
-                    with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{num_components}_ica_{input_features}.pkl', "wb") as fp:
-                        pickle.dump(X, fp)
-                except:
-                    logger.error(f"PCA: {pca_component}, ICA: {ica_component}")
+                        with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{num_components}_ica_{input_features}_kernel_{kernel}.pkl', "wb") as fp:
+                            pickle.dump(X, fp)
+                    except:
+                        logger.error(f"PCA: {pca_component}, ICA: {ica_component}, kernel:{kernel}")
 
-            logging.info("Feature reduction applied. Creating feature file...")
+                logging.info("Feature reduction applied. Creating feature file...")
 
 
 
