@@ -21,7 +21,8 @@ from utils.models import create_layer_map, load_model, load_ground_truth, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import fit_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_final_layer, \
-    use_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_pca_model_ica
+    use_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_pca_model_ica_opt
+    # fit_feature_reduction_algorithm_pca_model_ica
     # fit_feature_reduction_algorithm,
     # use_feature_reduction_algorithm,
 
@@ -181,11 +182,20 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
 
-        layer_pca_components = [3, 5, 10, 20]
+        layer_pca_components = [10, 20, 30]
         arch_pca_components = [10, 100, 500]
         dataset_pca_components = [2, 4, 6]
         ica_components = [2, 4, 6]
         kernels = ['rbf', 'linear', 'poly', 'sigmoid', 'cosine']
+        fc = fit_feature_reduction_algorithm_pca_model_ica_opt(file_path=self.learned_parameters_dirpath,
+                                                               model_dict=flat_models,
+                                                               layer_pca_components=layer_pca_components,
+                                                               arch_pca_components=arch_pca_components,
+                                                               dataset_pca_components=dataset_pca_components,
+                                                               ica_components=ica_components,
+                                                               kernels=kernels)
+        print('Files Generated: ', fc)
+        '''
         for kernel in tqdm(kernels, desc='kernels'):
             print('Generating: ', kernel)
             for ica_component in ica_components:
@@ -193,7 +203,7 @@ class Detector(AbstractDetector):
                     for arch_pca_component in arch_pca_components:
                         for dataset_pca_component in dataset_pca_components:
                             try:
-                                X = fit_feature_reduction_algorithm_pca_model_ica(flat_models,
+                                X = fit_feature_reduction_algorithm_pca_model_ica(model_dict=flat_models,
                                                                                   layer_pca_component=layer_pca_component,
                                                                                   arch_pca_component=arch_pca_component,
                                                                                   dataset_pca_component=dataset_pca_component,
@@ -204,8 +214,7 @@ class Detector(AbstractDetector):
                                     pickle.dump(X, fp)
                             except Exception as er1:
                                 er1  # print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
-
-
+        '''
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
             model_index = 0
@@ -228,6 +237,7 @@ class Detector(AbstractDetector):
 
             X = np.vstack((X, model_feats * self.model_skew["__all__"]))
             '''
+        '''   
         if X is None:
             # stack transformed features
             for model_arch, layers in layer_transform.items():
@@ -249,7 +259,7 @@ class Detector(AbstractDetector):
             with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
                 pickle.dump(layer_transform, fp)
             del layer_transform
-
+        '''
 
         print("Training detector model...")
         # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)

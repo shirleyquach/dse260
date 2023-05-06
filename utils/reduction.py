@@ -3,6 +3,7 @@ import importlib
 import numpy as np
 from tqdm import tqdm
 from sklearn.decomposition import PCA, FastICA, KernelPCA
+import pickle
 
 
 def feature_reduction(model, weight_table, max_features):
@@ -153,3 +154,56 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
     data_transform = ica.fit_transform(data_transform)
 
     return data_transform
+
+
+def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, layer_pca_components, arch_pca_components, dataset_pca_components, ica_components, kernels):
+    arch_transform = None
+    file_count = 0
+    # try each layer pca
+    for kernel in tqdm(kernels, desc='kernels'):
+        print('Generating: ', kernel)
+        #try:
+        for layer_pca_component in layer_pca_components:
+            # iterate through each arch
+            for (model_arch, models) in model_dict.items():
+                layer_transform = None
+
+                # collect layer transform for this arch
+                pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
+                for layers in models[0].keys():
+                    s = np.stack([model[layers] for model in models])  # s = this layer from each model
+                    # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
+                    s = pca.fit_transform(s)  # store the PCA transformed features
+                    if layer_transform is None:
+                        layer_transform = s
+                        continue
+                    layer_transform = np.hstack((layer_transform, s))
+
+            # using this layer_transform, try each arch pca_component
+            for arch_pca_component in arch_pca_components:
+                arch_transform = None
+                # perform pca at arch level
+                pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
+                all_layer_transform = pca.fit_transform(layer_transform)
+                if arch_transform is None:
+                    arch_transform = all_layer_transform
+                    continue
+                arch_transform = np.vstack((arch_transform, layer_transform))
+
+                for dataset_pca_component in dataset_pca_components:
+                    # pca for the entire dataset
+                    pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
+                    data_transform = pca.fit_transform(arch_transform)
+
+                    for ica_component in ica_components:
+                        # ica for the entire dataset
+                        ica = FastICA(n_components=ica_component)
+                        ica_transform = ica.fit_transform(data_transform)
+
+                        with open(file_path + f'2023-05-05_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',"wb") as fp:
+                            pickle.dump(ica_transform, fp)
+                        file_count += 1
+        # except Exception as er1:
+        #    print(er1)  # print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
+
+    return file_count
