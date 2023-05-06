@@ -206,8 +206,6 @@ class Detector(AbstractDetector):
                                 er1  # print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
 
 
-
-
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
             model_index = 0
