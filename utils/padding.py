@@ -5,7 +5,7 @@ from utils.arrays import get_model_shape
 def create_models_padding(model_repr_dict: dict) -> dict:
     padding = {}
 
-    for (model_class, model_repr_list) in model_repr_dict.items():
+    for model_class, model_repr_list in model_repr_dict.items():
         # Create reference model shape from the first model
         reference_model = model_repr_list[0]
         reference = get_model_shape(reference_model)
@@ -22,7 +22,9 @@ def create_models_padding(model_repr_dict: dict) -> dict:
                     rshape = reference_model[layer].shape
 
                     if len(tshape) != len(rshape):
-                        raise Exception(f"Incompatible shape detected for layer {layer}")
+                        raise Exception(
+                            f"Incompatible shape detected for layer {layer}"
+                        )
 
                     if tshape != rshape:
                         new_padding = []
@@ -33,9 +35,7 @@ def create_models_padding(model_repr_dict: dict) -> dict:
                             if layer in padding[model_class].keys():
                                 possible_shapes.append(padding[model_class][layer][i])
 
-                            new_padding.append(
-                                max(possible_shapes)
-                            )
+                            new_padding.append(max(possible_shapes))
 
                         padding[model_class][layer] = new_padding
 
@@ -46,7 +46,7 @@ def pad_to_target(input_array: np.array, target_padding: list, constant_value=0)
     try:
         padding_array = []
         assert len(target_padding) == len(input_array.shape)
-        for (idx, target) in enumerate(target_padding):
+        for idx, target in enumerate(target_padding):
             current = input_array.shape[idx]
             assert target >= current
             if target > current:
@@ -73,8 +73,7 @@ def pad_model(model_dict: dict, model_class: str, models_padding_dict: dict) -> 
     Returns:
         dict - The padded dictionary
     """
-    for (layer, target_padding) in models_padding_dict[model_class].items():
+    for layer, target_padding in models_padding_dict[model_class].items():
         model_dict[layer] = pad_to_target(model_dict[layer], target_padding)
 
     return model_dict
-

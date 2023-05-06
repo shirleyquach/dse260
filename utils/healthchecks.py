@@ -3,7 +3,7 @@ from utils.arrays import get_model_shape
 
 def check_models_consistency(model_repr_dict):
     try:
-        for (_, model_repr_list) in model_repr_dict.items():
+        for _, model_repr_list in model_repr_dict.items():
             # Create reference model shape from the first model
             reference = get_model_shape(model_repr_list[0])
 

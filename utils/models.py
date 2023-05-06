@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 def create_layer_map(model_repr_dict):
     model_layer_map = {}
-    for (model_class, models) in model_repr_dict.items():
+    for model_class, models in model_repr_dict.items():
         layers = models[0]
         layer_names = list(layers.keys())
         base_layer_names = list(
@@ -47,7 +47,7 @@ def load_model(model_filepath: str) -> (dict, str):
     Returns:
         model, dict, str - Torch model + dictionary representation of the model + model class name
     """
-    model = torch.load(model_filepath, map_location='cpu')
+    model = torch.load(model_filepath, map_location="cpu")
     model_class = model.__class__.__name__
     model_repr = OrderedDict(
         {layer: tensor.cpu().numpy() for (layer, tensor) in model.state_dict().items()}
@@ -77,9 +77,7 @@ def load_models_dirpath(models_dirpath):
     model_ground_truth_dict = {}
 
     for model_path in tqdm(models_dirpath):
-        model, model_repr, model_class = load_model(
-            join(model_path, "model.pt")
-        )
+        model, model_repr, model_class = load_model(join(model_path, "model.pt"))
         model_ground_truth = load_ground_truth(model_path)
 
         # Build the list of models

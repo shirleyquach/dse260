@@ -30,7 +30,7 @@ def flatten_layer(model, layer_map):
 
 def flatten_model(input_model, model_layers):
     new_model = OrderedDict()
-    for (layer, layer_map) in model_layers.items():
+    for layer, layer_map in model_layers.items():
         new_model[layer] = (
             flatten_layer(input_model, layer_map)
             if len(layer_map) > 0

@@ -4,7 +4,6 @@ import abc
 
 
 class AbstractDetector(abc.ABC):
-
     def configure(self, models_dirpath: str, automatic_training: bool):
         if automatic_training:
             self.automatic_configure(models_dirpath)
