@@ -165,19 +165,23 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, lay
         #try:
         for layer_pca_component in layer_pca_components:
             # iterate through each arch
-            for (model_arch, models) in model_dict.items():
-                layer_transform = None
+            try:
+                for (model_arch, models) in model_dict.items():
+                    layer_transform = None
 
-                # collect layer transform for this arch
-                pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
-                for layers in models[0].keys():
-                    s = np.stack([model[layers] for model in models])  # s = this layer from each model
-                    # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
-                    s = pca.fit_transform(s)  # store the PCA transformed features
-                    if layer_transform is None:
-                        layer_transform = s
-                        continue
-                    layer_transform = np.hstack((layer_transform, s))
+                    # collect layer transform for this arch
+                    pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
+                    for layers in models[0].keys():
+                        s = np.stack([model[layers] for model in models])  # s = this layer from each model
+                        # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
+                        s = pca.fit_transform(s)  # store the PCA transformed features
+                        if layer_transform is None:
+                            layer_transform = s
+                            continue
+                        layer_transform = np.hstack((layer_transform, s))
+            except Exception as es1:
+                print(f"Failed on: {model_arch}, {kernel}, {layer_pca_component}")
+                continue
 
             # using this layer_transform, try each arch pca_component
             for arch_pca_component in arch_pca_components:
@@ -200,7 +204,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, lay
                         ica = FastICA(n_components=ica_component)
                         ica_transform = ica.fit_transform(data_transform)
 
-                        with open(file_path + f'2023-05-05_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',"wb") as fp:
+                        with open(file_path + f'2023-05-06_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',"wb") as fp:
                             pickle.dump(ica_transform, fp)
                         file_count += 1
         # except Exception as er1:

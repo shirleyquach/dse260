@@ -182,11 +182,11 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
 
-        layer_pca_components = [10, 20, 30]
-        arch_pca_components = [10, 100, 500]
+        layer_pca_components = [25, 30,100, 200]
+        arch_pca_components = [100, 500, 2000]
         dataset_pca_components = [2, 4, 6]
         ica_components = [2, 4, 6]
-        kernels = ['rbf', 'linear', 'poly', 'sigmoid', 'cosine']
+        kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
         fc = fit_feature_reduction_algorithm_pca_model_ica_opt(file_path=self.learned_parameters_dirpath,
                                                                model_dict=flat_models,
                                                                layer_pca_components=layer_pca_components,
@@ -224,7 +224,7 @@ class Detector(AbstractDetector):
                 model = models.pop(0)
                 y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
-        with open(self.learned_parameters_dirpath + f'2023-05-05_target_num_pca_ica.pkl', "wb") as fp:
+        with open(self.learned_parameters_dirpath + f'2023-05-06_target_num_pca_ica.pkl', "wb") as fp:
             pickle.dump(y, fp)
 
             '''
