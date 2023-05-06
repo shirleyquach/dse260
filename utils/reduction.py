@@ -118,37 +118,38 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
 
 
 def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_component, arch_pca_component, dataset_pca_component, ica_component, kernel):
-    layer_transform = {}
     arch_transform = None
 
     # iterate through each arch
     for (model_arch, models) in model_dict.items():
-        layer_transform[model_arch] = {}
+        layer_transform = None
 
-        # feature reduction of each layer
+        # feature reduction of each layer in this arch
+        pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
         for layers in models[0].keys():
-            layer_transform[model_arch][layers] = {}
             s = np.stack([model[layers] for model in models])  # s = this layer from each model
-            pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
             # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
-            layer_transform[model_arch][layers]['PCA_feat'] = pca.fit_transform(s)  # store the PCA transformed features
+            s = pca.fit_transform(s)  # store the PCA transformed features
+            if layer_transform is None:
+                layer_transform = s
+                continue
+            layer_transform = np.hstack((layer_transform, s))
 
         # perform pca at model arch level
         # s is stack pca features of each model in this arch
-        s = np.hstack([layer_transform[model_arch][m]['PCA_feat'] for m in layer_transform[model_arch]])
         pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
-        s = pca.fit_transform(s)
+        layer_transform = pca.fit_transform(layer_transform)
         if arch_transform is None:
-            arch_transform = s
+            arch_transform = layer_transform
             continue
-        arch_transform = np.vstack((arch_transform, s))
+        arch_transform = np.vstack((arch_transform, layer_transform))
 
     # pca for the entire dataset
     pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
-    model_transform = pca.fit_transform(arch_transform)
+    data_transform = pca.fit_transform(arch_transform)
 
     # ica for the entire dataset
     ica = FastICA(n_components=ica_component)
-    model_transform = ica.fit_transform(model_transform)
+    data_transform = ica.fit_transform(data_transform)
 
-    return model_transform
+    return data_transform

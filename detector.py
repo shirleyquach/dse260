@@ -146,7 +146,7 @@ class Detector(AbstractDetector):
 
         # List all available model
         model_path_list = sorted([join(models_dirpath, model) for model in listdir(models_dirpath)])
-        # logger.info(f"Loading %d models...", len(model_path_list))
+        logging.info(f"Loading %d models...", len(model_path_list))
 
         model_repr_dict, model_ground_truth_dict = load_models_dirpath(model_path_list)
 
@@ -163,16 +163,16 @@ class Detector(AbstractDetector):
         check_models_consistency(model_repr_dict)
 
         # Build model layer map to know how to flatten
-        # logger.info("Generating model layer map...")
+        logging.info("Generating model layer map...")
         model_layer_map = create_layer_map(model_repr_dict)
         with open(self.model_layer_map_filepath, "wb") as fp:
             pickle.dump(model_layer_map, fp)
-        # logger.info("Generated model layer map. Flattenning models...")
+        logging.info("Generated model layer map. Flattenning models...")
 
         # Flatten models
         flat_models = flatten_models(model_repr_dict, model_layer_map)
         del model_repr_dict
-        # logger.info("Models flattened. Fitting feature reduction...")
+        logging.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = None
         X = None
@@ -181,14 +181,13 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
 
-        layer_pca_components = [3, 5, 10]
+        layer_pca_components = [3, 5, 10, 20]
         arch_pca_components = [10, 100, 500]
         dataset_pca_components = [2, 4, 6]
         ica_components = [2, 4, 6]
-        for kernel in ['linear', 'poly', 'rbf', 'sigmoid', 'cosine']:
-        # layer_pca_components = [10]
-        # ica_components = [5]
-        # for kernel in ['poly']:
+        kernels = ['rbf', 'linear', 'poly', 'sigmoid', 'cosine']
+        for kernel in tqdm(kernels, desc='kernels'):
+            print('Generating: ', kernel)
             for ica_component in ica_components:
                 for layer_pca_component in layer_pca_components:
                     for arch_pca_component in arch_pca_components:
@@ -200,13 +199,13 @@ class Detector(AbstractDetector):
                                                                                   dataset_pca_component=dataset_pca_component,
                                                                                   ica_component=ica_component,
                                                                                   kernel=kernel)
-
+                                # print("Feature reduction applied. Creating feature file...")
                                 with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl', "wb") as fp:
                                     pickle.dump(X, fp)
                             except Exception as er1:
-                                print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
+                                er1  # print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
 
-                        print("Feature reduction applied. Creating feature file...")
+
 
 
         for _ in range(len(flat_models)):
