@@ -181,23 +181,32 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
 
-        pca_components = [1, 2, 10, 25, 30,35]
-        ica_components = [2, 5,10,15]
-        for kernel in ['poly', 'rbf', 'sigmoid', 'cosine']:
-        #pca_components = [10]
-        #ica_components = [5]
-        #for kernel in ['poly']:
+        layer_pca_components = [3, 5, 10]
+        arch_pca_components = [10, 100, 500]
+        dataset_pca_components = [2, 4, 6]
+        ica_components = [2, 4, 6]
+        for kernel in ['linear', 'poly', 'rbf', 'sigmoid', 'cosine']:
+        # layer_pca_components = [10]
+        # ica_components = [5]
+        # for kernel in ['poly']:
             for ica_component in ica_components:
-                for pca_component in pca_components:
-                    try:
-                        X = fit_feature_reduction_algorithm_pca_model_ica(flat_models, pca_component=pca_component, ica_component=ica_component, kernel=kernel)
+                for layer_pca_component in layer_pca_components:
+                    for arch_pca_component in arch_pca_components:
+                        for dataset_pca_component in dataset_pca_components:
+                            try:
+                                X = fit_feature_reduction_algorithm_pca_model_ica(flat_models,
+                                                                                  layer_pca_component=layer_pca_component,
+                                                                                  arch_pca_component=arch_pca_component,
+                                                                                  dataset_pca_component=dataset_pca_component,
+                                                                                  ica_component=ica_component,
+                                                                                  kernel=kernel)
 
-                        with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_pca_{pca_component}_ica_{ica_component}_kernel_{kernel}.pkl', "wb") as fp:
-                            pickle.dump(X, fp)
-                    except Exception as er1:
-                        print(f"Failed - PCA: {pca_component}, ICA: {ica_component}, kernel:{kernel}\n{er1}")
+                                with open(self.learned_parameters_dirpath + f'2023-05-05_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl', "wb") as fp:
+                                    pickle.dump(X, fp)
+                            except Exception as er1:
+                                print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
 
-                print("Feature reduction applied. Creating feature file...")
+                        print("Feature reduction applied. Creating feature file...")
 
 
         for _ in range(len(flat_models)):

@@ -17,9 +17,10 @@ def feature_reduction(model, weight_table, max_features):
         out_f = int(np.round(wt_percent * add_feat)) + tf  # every layer min feature plus additional
         if layer == list(model.keys())[-1]:
             out_f = max_features - sum(outputs.values())
-        #assert out_f > 0
+        # assert out_f > 0
         outputs[layer] = out_f
     return outputs
+
 
 def init_feature_reduction(output_feats):
     fr_algo = "sklearn.decomposition.FastICA"
@@ -49,6 +50,7 @@ def fit_feature_reduction_algorithm(model_dict, weight_table_params, input_featu
 
     return layer_transform
 
+
 def fit_feature_reduction_algorithm_pca_ica(model_dict, weight_table_params, input_features):
     layer_transform = {}
     weight_table = init_weight_table(**weight_table_params)
@@ -71,6 +73,7 @@ def fit_feature_reduction_algorithm_pca_ica(model_dict, weight_table_params, inp
             #     del model[layers]
     return layer_transform
 
+
 def use_feature_reduction_algorithm(layer_transform, model):
     out_model = np.array([[]])
     for (layer, weights) in model.items():
@@ -84,6 +87,7 @@ def use_feature_reduction_algorithm_pca_ica(layer_transform, model):
         pca_weights = layer_transform[layer]['PCA'].transform([weights])
         out_model = np.hstack((out_model, layer_transform[layer]['ICA'].transform(pca_weights)))
     return out_model
+
 
 def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params, input_features):
     layer_transform = {}
@@ -112,36 +116,39 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
                 del model[layers]
     return layer_transform
 
-def fit_feature_reduction_algorithm_pca_model_ica(model_dict, pca_component, ica_component, kernel):
+
+def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_component, arch_pca_component, dataset_pca_component, ica_component, kernel):
     layer_transform = {}
-    # weight_table = init_weight_table(**weight_table_params)
-    model_transform = None
+    arch_transform = None
+
+    # iterate through each arch
     for (model_arch, models) in model_dict.items():
-        # layers_output = feature_reduction(models[0], weight_table, input_features)
         layer_transform[model_arch] = {}
+
+        # feature reduction of each layer
         for layers in models[0].keys():
             layer_transform[model_arch][layers] = {}
-            s = np.stack([model[layers] for model in models])
-            pca = KernelPCA(n_components=pca_component, kernel=kernel,)
-            # pca = PCA(n_components=pca_component, whiten=True)
-            layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit
-            layer_transform[model_arch][layers]['PCA_feat'] = pca.transform(s)  # store the PCA transformed features
+            s = np.stack([model[layers] for model in models])  # s = this layer from each model
+            pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
+            # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
+            layer_transform[model_arch][layers]['PCA_feat'] = pca.fit_transform(s)  # store the PCA transformed features
 
-            # remove layer
-            #for model in models:
-            #    del model[layers]
-        # perform ica at model level
-        s = np.hstack([layer_transform[model_arch][l]['PCA_feat'] for l in layer_transform[model_arch]])
-        for l in layer_transform[model_arch]:
-            del layer_transform[model_arch][l]['PCA_feat']
-        ica = FastICA(n_components=ica_component)
-        s = ica.fit_transform(s)
-        if model_transform is None:
-            model_transform = s
+        # perform pca at model arch level
+        # s is stack pca features of each model in this arch
+        s = np.hstack([layer_transform[model_arch][m]['PCA_feat'] for m in layer_transform[model_arch]])
+        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
+        s = pca.fit_transform(s)
+        if arch_transform is None:
+            arch_transform = s
             continue
-        try:
-            model_transform = np.vstack((model_transform, s))
-        except Exception me1:
-            print(me1)
+        arch_transform = np.vstack((arch_transform, s))
+
+    # pca for the entire dataset
+    pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
+    model_transform = pca.fit_transform(arch_transform)
+
+    # ica for the entire dataset
+    ica = FastICA(n_components=ica_component)
+    model_transform = ica.fit_transform(model_transform)
 
     return model_transform
