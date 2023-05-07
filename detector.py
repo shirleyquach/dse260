@@ -185,9 +185,16 @@ class Detector(AbstractDetector):
         layer_pca_components = [25, 30, 100, 200]
         arch_pca_components = [100, 200, 300] # arch pca components must be less than the number of samples in each architechture
         #arch_pca_components = [10, 15, 25] # use these for testing
-        dataset_pca_components = [2, 4, 6]
+        dataset_pca_components = [2, 4, 6, 20]
         ica_components = [2, 4, 6]
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
+        '''
+        layer_pca_components = [200]
+        arch_pca_components = [60] # use these for testing
+        dataset_pca_components = [4,8,20]
+        ica_components = [2,4]
+        kernels = ['rbf']
+        '''
         fc = fit_feature_reduction_algorithm_pca_model_ica_opt(file_path=self.learned_parameters_dirpath,
                                                                model_dict=flat_models,
                                                                layer_pca_components=layer_pca_components,
@@ -196,6 +203,7 @@ class Detector(AbstractDetector):
                                                                ica_components=ica_components,
                                                                kernels=kernels)
         print('Files Generated: ', fc)
+
         '''
         for kernel in tqdm(kernels, desc='kernels'):
             print('Generating: ', kernel)
@@ -216,6 +224,15 @@ class Detector(AbstractDetector):
                             except Exception as er1:
                                 er1  # print(f"Failed - l_PCA: {layer_pca_component}, a_PCA: {arch_pca_component}, d_PCA: {dataset_pca_component},ICA: {ica_component}, kernel:{kernel}\n{er1}")
         '''
+
+        for (model_arch, models) in flat_models.items():
+            model_index = 0
+            for m in models:
+                y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
+                model_index += 1
+        with open(self.learned_parameters_dirpath + f'2023-05-06_target_num_pca_ica.pkl', "wb") as fp:
+            pickle.dump(y, fp)
+        '''
         for _ in range(len(flat_models)):
             (model_arch, models) = flat_models.popitem()
             model_index = 0
@@ -227,18 +244,7 @@ class Detector(AbstractDetector):
                 model_index += 1
         with open(self.learned_parameters_dirpath + f'2023-05-06_target_num_pca_ica.pkl', "wb") as fp:
             pickle.dump(y, fp)
-
-            '''
-            model_feats = use_feature_reduction_algorithm(
-                layer_transform[model_arch], model
-            )
-            if X is None:
-                X = model_feats
-                continue
-
-            X = np.vstack((X, model_feats * self.model_skew["__all__"]))
-            '''
-        '''   
+              
         if X is None:
             # stack transformed features
             for model_arch, layers in layer_transform.items():
