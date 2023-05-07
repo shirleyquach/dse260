@@ -182,8 +182,9 @@ class Detector(AbstractDetector):
         # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
         # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
 
-        layer_pca_components = [25, 30,100, 200]
-        arch_pca_components = [100, 500, 2000]
+        layer_pca_components = [25, 30, 100, 200]
+        arch_pca_components = [100, 200, 300] # arch pca components must be less than the number of samples in each architechture
+        #arch_pca_components = [10, 15, 25] # use these for testing
         dataset_pca_components = [2, 4, 6]
         ica_components = [2, 4, 6]
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
