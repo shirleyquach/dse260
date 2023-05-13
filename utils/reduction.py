@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.decomposition import PCA, FastICA, KernelPCA
 import pickle
+from sklearn.preprocessing import StandardScaler
 
 
 def feature_reduction(model, weight_table, max_features):
@@ -119,18 +120,26 @@ def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params,
 
 
 def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_component, arch_pca_component, dataset_pca_component, ica_component, kernel):
+    # should be run after fit_feature_reduction_algorithm_pca_model_ica_opt to re-generate fits and store them
+    # return the transformed dataset and the dimensionality reduction fits
+    # dim_reduction is dictionary of fits for each arch/layer pca, arch pca, dataset pca, dataset ica
+
     arch_transform = None
+    dim_reduction = {}
 
     # iterate through each arch
     for (model_arch, models) in model_dict.items():
         layer_transform = None
+        dim_reduction[model_arch] = {}  # dict for each arch
 
         # feature reduction of each layer in this arch
         pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
         for layers in models[0].keys():
             s = np.stack([model[layers] for model in models])  # s = this layer from each model
-            # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
-            s = pca.fit_transform(s)  # store the PCA transformed features
+
+            # store PCA fit
+            dim_reduction[model_arch][layers] = pca.fit(s)
+            s = pca.transform(s)
             if layer_transform is None:
                 layer_transform = s
                 continue
@@ -139,7 +148,8 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
         # perform pca at model arch level
         # s is stack pca features of each model in this arch
         pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
-        layer_transform = pca.fit_transform(layer_transform)
+        dim_reduction[model_arch]['arch_pca'] = pca.fit(layer_transform)
+        layer_transform = pca.transform(layer_transform)
         if arch_transform is None:
             arch_transform = layer_transform
             continue
@@ -147,18 +157,19 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
 
     # pca for the entire dataset
     pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
-    data_transform = pca.fit_transform(arch_transform)
+    dim_reduction['dataset_pca'] = pca.fit(arch_transform)
+    data_transform = pca.transform(arch_transform)
 
     # ica for the entire dataset
     ica = FastICA(n_components=ica_component)
-    data_transform = ica.fit_transform(data_transform)
+    dim_reduction['dataset_ica'] = ica.fit(data_transform)
+    data_transform = ica.transform(data_transform)
 
-    return data_transform
+    return data_transform, dim_reduction
 
 
 def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, layer_pca_components, arch_pca_components, dataset_pca_components, ica_components, kernels):
     file_count = 0
-
 
     # try each layer pca
     for kernel in tqdm(kernels, desc='kernels'):
@@ -175,7 +186,8 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, lay
                     pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
                     for layers in models[0].keys():
                         s = np.stack([model[layers] for model in models])  # s = this layer from each model
-                        # layer_transform[model_arch][layers]['PCA'] = pca.fit(s)  # store PCA fit - commented out because currently not storing
+                        #scaler = StandardScaler()
+                        #s = scaler.fit_transform(s)
                         s = pca.fit_transform(s)  # store the PCA transformed features
                         if layer_transform is None:
                             layer_transform = s
@@ -210,7 +222,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(file_path, model_dict, lay
                             ica = FastICA(n_components=ica_component)
                             ica_transform = ica.fit_transform(data_transform)
 
-                            with open(file_path + f'2023-05-06_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',"wb") as fp:
+                            with open(file_path + f'2023-05-08_train_num_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',"wb") as fp:
                                 pickle.dump(ica_transform, fp)
                             file_count += 1
 
