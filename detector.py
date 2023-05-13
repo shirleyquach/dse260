@@ -14,6 +14,7 @@ from hpsklearn import HyperoptEstimator, random_forest_classifier, xgboost_class
     linear_regression, elastic_net, logistic_regression, xgboost_regression, random_forest_regressor
 from hyperopt import hp
 
+from utils.training import model_training
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
@@ -143,6 +144,10 @@ class Detector(AbstractDetector):
         # Create the learned parameter folder if needed
         if not exists(self.learned_parameters_dirpath):
             makedirs(self.learned_parameters_dirpath)
+        # Create reduction file folder if needed
+        training_fp = join(self.learned_parameters_dirpath, 'reduced')
+        if not exists(training_fp):
+            makedirs(training_fp)
 
         # List all available model
         model_path_list = sorted([join(models_dirpath, model) for model in listdir(models_dirpath)])
@@ -174,12 +179,7 @@ class Detector(AbstractDetector):
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
-        layer_transform = None
-        X = None
-        y = []
-        # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        # layer_transform = fit_feature_reduction_algorithm_pca_ica(flat_models, self.weight_table_params, self.input_features)
-        # layer_transform = fit_feature_reduction_algorithm_final_layer(flat_models, self.weight_table_params, self.input_features)
+        dt_str = datetime.fromtimestamp(time.time()).strftime('%Y%_m_%d_%H_%M')
         '''
         layer_pca_components = [25, 30, 100, 200]
         #arch_pca_components = [100, 200, 300] # arch pca components must be less than the number of samples in each architechture
@@ -189,26 +189,26 @@ class Detector(AbstractDetector):
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
         '''
         layer_pca_components = [200]
-        arch_pca_components = [60] # use these for testing
-        dataset_pca_components = [4,8,20]
-        ica_components = [2,4]
+        arch_pca_components = [60]  # use these for testing
+        dataset_pca_components = [4, 8, 20]
+        ica_components = [2, 4]
         kernels = ['rbf']
-        
-        file_count = fit_feature_reduction_algorithm_pca_model_ica_opt(file_path=self.learned_parameters_dirpath,
-                                                               model_dict=flat_models,
-                                                               layer_pca_components=layer_pca_components,
-                                                               arch_pca_components=arch_pca_components,
-                                                               dataset_pca_components=dataset_pca_components,
-                                                               ica_components=ica_components,
-                                                               kernels=kernels)
+        file_count, file_map = fit_feature_reduction_algorithm_pca_model_ica_opt(date_time=dt_str,
+                                                                                 file_path=training_fp,
+                                                                                 model_dict=flat_models,
+                                                                                 layer_pca_components=layer_pca_components,
+                                                                                 arch_pca_components=arch_pca_components,
+                                                                                 dataset_pca_components=dataset_pca_components,
+                                                                                 ica_components=ica_components,
+                                                                                 kernels=kernels)
         print('Files Generated: ', file_count)
-
+        y = []
         for (model_arch, models) in flat_models.items():
             model_index = 0
             for m in models:
                 y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
-        with open(self.learned_parameters_dirpath + f'2023-05-08_target_num_pca_ica.pkl', "wb") as fp:
+        with open(self.learned_parameters_dirpath + dt_str + f'target_num_pca_ica.pkl', "wb") as fp:
             pickle.dump(y, fp)
 
         # optimizer goes here
@@ -227,15 +227,19 @@ class Detector(AbstractDetector):
         #
         # return dict of configs selected_models
 
+        # train models for each training file and get the results for eval
+        for train_file, train_config in file_map.items():
+            train_config[train_file]['models'] = model_training(train_file=train_file, y=y, threshold=0.6)
+
         selected_models = {}  # replace empty dict here with model/config optimizer output
         selected_fits = {}
         for filename, config in selected_models.items():
             data_transform, dim_reduction = fit_feature_reduction_algorithm_pca_model_ica(model_dict=flat_models,
-                                                          layer_pca_component=config['layer_pca_component'],
-                                                          arch_pca_component=config['arch_pca_component'],
-                                                          dataset_pca_component=config['dataset_pca_component'],
-                                                          ica_component=config['dataset_pca_component'],
-                                                          kernel=config['kernel'])
+                                                                                          layer_pca_component=config['layer_pca_component'],
+                                                                                          arch_pca_component=config['arch_pca_component'],
+                                                                                          dataset_pca_component=config['dataset_pca_component'],
+                                                                                          ica_component=config['dataset_pca_component'],
+                                                                                          kernel=config['kernel'])
             selected_fits[filename] = dim_reduction
         with open(self.learned_parameters_dirpath + 'selected_fits.bin', "wb") as fp:
             pickle.dump(selected_fits, fp)
