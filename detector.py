@@ -178,7 +178,7 @@ class Detector(AbstractDetector):
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
-        dt_str = datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d')
+        dt_str = datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M')
         logging.info(f"Getting datetime for file generation: {dt_str}")
 
         '''
@@ -244,16 +244,21 @@ class Detector(AbstractDetector):
         selected_features, ensemble_model = train_model_eval_ensemble(X, y, tol=.01)
 
         print('model accuracy:', ensemble_model.score(X[:, selected_features], y))
-        logging.info("Saving ensemble and parts...")
+        logging.info("Saving ensemble, models, components...")
 
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(ensemble_model, fp)
-        # remove models that were not selected
-        X_map = X_map[selected_features]
+
+        # turn X_map into list of models to remove
+        X_map = X_map[~selected_features]
         for feats in X_map:
-            file_map[feats[0]]['models'][feats[1]].pop()
+            file_map[feats[0]]['models'].pop(feats[1])
         # if all the models were removed, remove the component config too
         file_map = OrderedDict({key: val for key, val in file_map.items() if len(val['models']) > 0})
+
+        # save the models here
+        with open(self.learned_parameters_dirpath + 'file_map.pkl', "wb") as fp:
+            pickle.dump(file_map, fp)
 
         # get the selected fits and create dataset for ensemble
         selected_fits = {}
@@ -267,11 +272,8 @@ class Detector(AbstractDetector):
                                                                                           kernel=config['kernel'])
             selected_fits[filename] = dim_reduction
 
-        with open(self.learned_parameters_dirpath + 'selected_fits.bin', "wb") as fp:
+        with open(self.learned_parameters_dirpath + 'selected_fits.pkl', "wb") as fp:
             pickle.dump(selected_fits, fp)
-        del selected_fits
-
-
 
         '''
         logging.info("Training ensemble...")

@@ -34,7 +34,8 @@ def train_model_fast(file_path, train_file, y, threshold):
     for clf in classifiers:
         # fit this model
         model = clf
-        cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1)
+        model.fit(X_train, y_train)
+        cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1, cv='prefit')
         cc.fit(X_train, y_train)
 
         # evaluate this model
@@ -44,6 +45,7 @@ def train_model_fast(file_path, train_file, y, threshold):
         # if this model is bad, skip it
         if f1 < threshold:
             continue
+
         # store predictions of this model
         f1_class = f1_score(y_test, y_pred, average=None)
         accuracy = cc.score(X_test, y_test)
@@ -84,9 +86,10 @@ def train_model_opt(file_path, train_file, y, threshold):
         # find optimized model
         model.fit(X_train, y_train, n_folds=5, cv_shuffle=True)
         model = model.best_model()['learner']
+        model.fit(X_train, y_train)
 
         # calibrate prob for this model
-        cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1)
+        cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1, cv='prefit')
         cc.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
@@ -117,11 +120,14 @@ def train_model_eval_ensemble(X, y, tol):
     for logger in loggers_to_shut_up:
         logging.getLogger(logger).setLevel(logging.ERROR)
 
+    start_size = X.shape[1]
     rf = RandomForestClassifier()
 
     sfs = SequentialFeatureSelector(rf, n_features_to_select='auto', tol=tol, scoring='f1_micro', n_jobs=-1, cv=5)
     sfs.fit(X, y)
     X = sfs.transform(X)
+
+    print('Models removed:', start_size - X.shape[1])
 
     rf = HyperoptEstimator(classifier=random_forest_classifier('this_clf'),
                            max_evals=10,
