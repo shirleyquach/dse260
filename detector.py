@@ -4,17 +4,16 @@ import os
 import pickle
 from os import listdir, makedirs
 from os.path import join, exists, basename
+from collections import OrderedDict
 
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.feature_selection import SequentialFeatureSelector
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import classification_report
 from tqdm import tqdm
-from hpsklearn import HyperoptEstimator, random_forest_classifier, xgboost_classification, \
-    sgd_classifier, svc, gradient_boosting_classifier, k_neighbors_classifier, gradient_boosting_regressor, \
-    linear_regression, elastic_net, logistic_regression, xgboost_regression, random_forest_regressor
-from hyperopt import hp
 
-from utils.training import model_training
+from utils.training import train_model_fast, train_model_opt, train_model_eval_ensemble
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
@@ -145,7 +144,7 @@ class Detector(AbstractDetector):
         if not exists(self.learned_parameters_dirpath):
             makedirs(self.learned_parameters_dirpath)
         # Create reduction file folder if needed
-        training_fp = join(self.learned_parameters_dirpath, 'reduced')
+        training_fp = join(self.learned_parameters_dirpath, 'reduced/')
         if not exists(training_fp):
             makedirs(training_fp)
 
@@ -179,7 +178,9 @@ class Detector(AbstractDetector):
         del model_repr_dict
         logging.info("Models flattened. Fitting feature reduction...")
 
-        dt_str = datetime.fromtimestamp(time.time()).strftime('%Y%_m_%d_%H_%M')
+        dt_str = datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d')
+        logging.info(f"Getting datetime for file generation: {dt_str}")
+
         '''
         layer_pca_components = [25, 30, 100, 200]
         #arch_pca_components = [100, 200, 300] # arch pca components must be less than the number of samples in each architechture
@@ -189,10 +190,10 @@ class Detector(AbstractDetector):
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
         '''
         layer_pca_components = [200]
-        arch_pca_components = [60]  # use these for testing
-        dataset_pca_components = [4, 8, 20]
+        arch_pca_components = [20, 30]
+        dataset_pca_components = [6, 10]
         ica_components = [2, 4]
-        kernels = ['rbf']
+        kernels = ['rbf', 'poly']
         file_count, file_map = fit_feature_reduction_algorithm_pca_model_ica_opt(date_time=dt_str,
                                                                                  file_path=training_fp,
                                                                                  model_dict=flat_models,
@@ -202,13 +203,14 @@ class Detector(AbstractDetector):
                                                                                  ica_components=ica_components,
                                                                                  kernels=kernels)
         print('Files Generated: ', file_count)
+
         y = []
         for (model_arch, models) in flat_models.items():
             model_index = 0
             for m in models:
                 y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
                 model_index += 1
-        with open(self.learned_parameters_dirpath + dt_str + f'target_num_pca_ica.pkl', "wb") as fp:
+        with open(self.learned_parameters_dirpath + '/' + dt_str + f'_target_num_pca_ica.pkl', "wb") as fp:
             pickle.dump(y, fp)
 
         # optimizer goes here
@@ -228,12 +230,35 @@ class Detector(AbstractDetector):
         # return dict of configs selected_models
 
         # train models for each training file and get the results for eval
+        logging.info("Training models for files...")
         for train_file, train_config in file_map.items():
-            train_config[train_file]['models'] = model_training(train_file=train_file, y=y, threshold=0.6)
+            file_map[train_file]['models'] = train_model_fast(file_path=training_fp, train_file=train_file, y=y, threshold=0.5)
 
-        selected_models = {}  # replace empty dict here with model/config optimizer output
+        logging.info("Training down select ensemble...")
+        # only keep configs where models made it past threshold
+        file_map = OrderedDict({key: val for key, val in file_map.items() if val['models'] != {}})
+        # construct dataset of model predictions
+        X = np.stack([model['predictions'] for val in file_map.values() for model in val['models'].values()])
+        X = np.transpose(X)
+        X_map = np.stack([[fn,mn] for fn, val in file_map.items() for mn in val['models'].keys()])
+        selected_features, ensemble_model = train_model_eval_ensemble(X, y, tol=.01)
+
+        print('model accuracy:', ensemble_model.score(X[:, selected_features], y))
+        logging.info("Saving ensemble and parts...")
+
+        with open(self.model_filepath, "wb") as fp:
+            pickle.dump(ensemble_model, fp)
+        # remove models that were not selected
+        X_map = X_map[selected_features]
+        for feats in X_map:
+            file_map[feats[0]]['models'][feats[1]].pop()
+        # if all the models were removed, remove the component config too
+        file_map = OrderedDict({key: val for key, val in file_map.items() if len(val['models']) > 0})
+
+        # get the selected fits and create dataset for ensemble
         selected_fits = {}
-        for filename, config in selected_models.items():
+        for filename, val in file_map.items():
+            config = val['config']
             data_transform, dim_reduction = fit_feature_reduction_algorithm_pca_model_ica(model_dict=flat_models,
                                                                                           layer_pca_component=config['layer_pca_component'],
                                                                                           arch_pca_component=config['arch_pca_component'],
@@ -241,79 +266,28 @@ class Detector(AbstractDetector):
                                                                                           ica_component=config['dataset_pca_component'],
                                                                                           kernel=config['kernel'])
             selected_fits[filename] = dim_reduction
+
         with open(self.learned_parameters_dirpath + 'selected_fits.bin', "wb") as fp:
             pickle.dump(selected_fits, fp)
         del selected_fits
 
-        '''
-        for _ in range(len(flat_models)):
-            (model_arch, models) = flat_models.popitem()
-            model_index = 0
 
-            # logger.info("Parsing %s models...", model_arch)
-            for _ in tqdm(range(len(models))):
-                model = models.pop(0)
-                y.append(model_ground_truth_dict[model_arch][model_index])  # change to use model_layer_map
-                model_index += 1
-        with open(self.learned_parameters_dirpath + f'2023-05-06_target_num_pca_ica.pkl', "wb") as fp:
-            pickle.dump(y, fp)
-              
-        if X is None:
-            # stack transformed features
-            for model_arch, layers in layer_transform.items():
-                arch_feats = None
-                for layer, layer_attributes in tqdm(layers.items()):
-                    layer_feats = layer_transform[model_arch][layer].pop('ICA_feat')
-                    if arch_feats is None:
-                        arch_feats = layer_feats
-                        continue
-                    # horizontal stack each layer
-                    arch_feats = np.hstack((arch_feats, layer_feats * self.model_skew["__all__"]))
-                # vertical stack samples from each architecture
-                if X is None:
-                    X = arch_feats
-                    continue
-                X = np.vstack((X, arch_feats))
-                # delete ICA features before storage
-                # store layer_transform
-            with open(self.learned_parameters_dirpath + 'layer_transform.bin', "wb") as fp:
-                pickle.dump(layer_transform, fp)
-            del layer_transform
-        '''
 
-        print("Training detector model...")
-        # model = RandomForestRegressor(**self.random_forest_kwargs, random_state=0)
         '''
-        clf = hp.pchoice('my_name',
-                         [(0.2, gradient_boosting_regressor('my_name.gradient_boosting_regressor')),
-                          (0.2, linear_regression('my_name.linear_regression')),
-                          (0.2, elastic_net('my_name.elastic_net')),
-                          (0.2, logistic_regression('my_name.logistic_regression')),
-                          (0.2, xgboost_regression('my_name.xgboost_regression')),
-                          (0.2, random_forest_regressor('my_name.random_forest_regressor'))
-                          ]
-                         )
-        
-        clf = hp.pchoice('my_name',
-                         [(1.0, k_neighbors_classifier('my_name.random_forest_classifier'))]
-                         )
-        
-        clf = hp.pchoice('my_name',
-                         [(0.3, random_forest_classifier('my_name.random_forest_classifier')),
-                          (0.3, gradient_boosting_classifier('my_name.gradient_boosting_classifier')),
-                          (0.4, sgd_classifier('my_name.sgd_classifier'))
-                          #(0.2, svc('my_name.svc')),
-                          #(0.4, xgboost_classification('my_name.xgboost_classification'))
-                          ]
-                         )
-        model = HyperoptEstimator(classifier=clf, n_jobs=16, max_evals=100, preprocessing=[])
+        logging.info("Training ensemble...")
+        gbc = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=0)
+        model = BaggingClassifier(base_estimator=gbc, n_estimators=500, random_state=0, n_jobs=-1)
         model.fit(X, y)
+        logging.info("Training CalibratedClassifierCV...")
+        calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
+        calibrator.fit(X, y)
+
         print(model.score(X, y))
         print(model.best_model())
 
         logger.info("Saving model...")
         with open(self.model_filepath, "wb") as fp:
-            pickle.dump(model, fp)
+            pickle.dump(calibrator, fp)
         '''
         self.write_metaparameters()
 
@@ -442,7 +416,7 @@ class Detector(AbstractDetector):
         # log the results
         run_time = str(time.time() - start_time)
         test_count = len(test_model_path_list)
-        st_str = datetime.fromtimestamp(start_time).strftime('%Y%m%d_%H:%M:%S')
+        st_str = datetime.fromtimestamp(start_time).strftime('%Y_%m_%d_%H_%M_%S')
         fn = 'results_' + st_str + '.csv'
         dm_str = str(detector_model)
 

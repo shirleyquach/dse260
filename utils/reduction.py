@@ -5,6 +5,7 @@ from tqdm import tqdm
 from sklearn.decomposition import PCA, FastICA, KernelPCA
 import pickle
 from sklearn.preprocessing import StandardScaler
+from collections import OrderedDict
 
 
 def feature_reduction(model, weight_table, max_features):
@@ -175,7 +176,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                                                       arch_pca_components, dataset_pca_components, ica_components,
                                                       kernels):
     file_count = 0
-    file_map = {}
+    file_map = OrderedDict()
 
     # try each layer pca
     for kernel in tqdm(kernels, desc='kernels'):
@@ -192,8 +193,9 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                     pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
                     for layers in models[0].keys():
                         s = np.stack([model[layers] for model in models])  # s = this layer from each model
-                        # scaler = StandardScaler()
-                        # s = scaler.fit_transform(s)
+                        if kernel != 'rbf':
+                            scaler = StandardScaler()
+                            s = scaler.fit_transform(s)
                         s = pca.fit_transform(s)  # store the PCA transformed features
                         if layer_transform is None:
                             layer_transform = s
@@ -227,16 +229,15 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                             # ica for the entire dataset
                             ica = FastICA(n_components=ica_component)
                             ica_transform = ica.fit_transform(data_transform)
-
-                            with open(
-                                    file_path + date_time + f'_train_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl',
-                                    "wb") as fp:
+                            file_name = date_time + f'_train_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl'
+                            with open(file_path + file_name, "wb") as fp:
                                 pickle.dump(ica_transform, fp)
-                                file_map[fp]['config'] = {'layer_pca_component': layer_pca_component,
-                                                          'arch_pca_component': arch_pca_component,
-                                                          'dataset_pca_component': dataset_pca_component,
-                                                          'ica_component': ica_component,
-                                                          'kernel': kernel}
+                            file_map[file_name] = {}
+                            file_map[file_name]['config'] = {'layer_pca_component': layer_pca_component,
+                                                             'arch_pca_component': arch_pca_component,
+                                                             'dataset_pca_component': dataset_pca_component,
+                                                             'ica_component': ica_component,
+                                                             'kernel': kernel}
                             file_count += 1
 
             except Exception as es1:
