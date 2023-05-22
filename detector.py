@@ -431,9 +431,10 @@ class Detector(AbstractDetector):
                 * self.model_skew["__all__"]
         )
 
-        probability = str(detector_model.predict(X)[0])
+        probability = detector_model.predict_proba(X)[:,1][0]
+        probability = str(round(probability*100,1))
 
-        logging.info("Trojan probability: %s", probability)
+        print('Trojan probability:', str(probability) + '%')
 
     '''
         # log the results
