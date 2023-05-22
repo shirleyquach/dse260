@@ -192,18 +192,12 @@ class Detector(AbstractDetector):
         dataset_pca_components = [2, 4, 6, 20]
         ica_components = [2, 4, 6]
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
-        
-        layer_pca_components = [100, 200]
+        '''
+        layer_pca_components = [20, 100, 200]
         arch_pca_components = [30, 100]
         dataset_pca_components = [10, 20]
         ica_components = [2, 6]
-        kernels = ['rbf', 'poly','sigmoid', 'cosine']
-        '''
-        layer_pca_components = [30]
-        arch_pca_components = [30]
-        dataset_pca_components = [15]
-        ica_components = [6]
-        kernels = ['rbf']
+        kernels = ['rbf', 'poly', 'sigmoid', 'cosine']
         file_count, file_map = fit_feature_reduction_algorithm_pca_model_ica_opt(date_time=dt_str,
                                                                                  file_path=training_fp,
                                                                                  model_dict=flat_models,
@@ -234,7 +228,7 @@ class Detector(AbstractDetector):
                                                                       best_model=best_model,
                                                                       best_accuracy=best_accuracy,
                                                                       best_file=best_file,
-                                                                      max_evals=5)
+                                                                      max_evals=8)
         print('Model Test Accuracy:', best_accuracy)
         '''
         logging.info("Training down select ensemble...")

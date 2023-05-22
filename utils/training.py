@@ -164,14 +164,14 @@ def train_model_search(file_path, train_file, y, best_model, best_accuracy, best
     print(train_file)
 
     # hyperopt models
-    classifiers = [random_forest_classifier
+    classifiers = [random_forest_classifier,
         # gradient_boosting_classifier,
         # k_neighbors_classifier,
         # gaussian_process_classifier,
         # xgboost_classification
     ]
     for clf in classifiers:
-        model = HyperoptEstimator(classifier=clf('clf'),
+        model = HyperoptEstimator(classifier=clf('clf', n_jobs=-1),
                                   n_jobs=16,
                                   max_evals=max_evals,
                                   algo=tpe.suggest,
