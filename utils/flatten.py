@@ -49,7 +49,7 @@ def flatten_models(model_repr_dict, model_layer_map):
 
     Returns:
     """
-    flat_models = {}
+    flat_models = OrderedDict()
 
     for _ in range(len(model_repr_dict)):
         (model_arch, models) = model_repr_dict.popitem()

@@ -23,6 +23,7 @@ def feature_reduction(model, weight_table, max_features):
         # assert out_f > 0
         outputs[layer] = out_f
     return outputs
+import gc
 
 
 def init_feature_reduction(output_feats):
@@ -93,6 +94,17 @@ def use_feature_reduction_algorithm_pca_ica(layer_transform, model):
     return out_model
 
 
+def use_feature_reduction_algorithm_pca_ica_pca_model_ica(layer_transform, model_class, model):
+    out_model = np.array([[]])
+    for (layer, weights) in model.items():
+        layer_pca = layer_transform[model_class][layer].transform([weights])
+        out_model = np.hstack((out_model, layer_pca))
+    arch_pca = layer_transform[model_class]['arch_pca'].transform(out_model)
+    data_pca = layer_transform['dataset_pca'].transform(arch_pca)
+    data_ica = layer_transform['dataset_ica'].transform(data_pca)
+    return data_ica
+
+
 def fit_feature_reduction_algorithm_final_layer(model_dict, weight_table_params, input_features):
     layer_transform = {}
     weight_table = init_weight_table(**weight_table_params)
@@ -129,16 +141,19 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
     # dim_reduction is dictionary of fits for each arch/layer pca, arch pca, dataset pca, dataset ica
 
     arch_transform = None
-    dim_reduction = {}
+    dim_reduction = OrderedDict()
 
     # iterate through each arch
-    for (model_arch, models) in model_dict.items():
+    arch_iter = [model_arch for model_arch in model_dict.keys()]
+    # for (model_arch, models) in model_dict.items():
+    for model_arch in arch_iter:
+        models = model_dict[model_arch]
         layer_transform = None
-        dim_reduction[model_arch] = {}  # dict for each arch
+        dim_reduction[model_arch] = OrderedDict()  # dict for each arch
 
         # feature reduction of each layer in this arch
-        pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
         for layers in models[0].keys():
+            pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
             s = np.stack([model[layers] for model in models])  # s = this layer from each model
 
             # store PCA fit
@@ -151,25 +166,27 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
 
         # perform pca at model arch level
         # s is stack pca features of each model in this arch
+        del model_dict[model_arch]
+        gc.collect()
         pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
         dim_reduction[model_arch]['arch_pca'] = pca.fit(layer_transform)
-        layer_transform = pca.transform(layer_transform)
+        a = pca.transform(layer_transform)
+        del layer_transform
         if arch_transform is None:
-            arch_transform = layer_transform
+            arch_transform = a
             continue
-        arch_transform = np.vstack((arch_transform, layer_transform))
+        arch_transform = np.vstack((arch_transform, a))
 
     # pca for the entire dataset
     pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
     dim_reduction['dataset_pca'] = pca.fit(arch_transform)
-    data_transform = pca.transform(arch_transform)
+    data_transform = pca.fit_transform(arch_transform)
 
     # ica for the entire dataset
     ica = FastICA(n_components=ica_component)
     dim_reduction['dataset_ica'] = ica.fit(data_transform)
-    data_transform = ica.transform(data_transform)
 
-    return data_transform, dim_reduction
+    return dim_reduction
 
 
 def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, model_dict, layer_pca_components,
@@ -185,13 +202,13 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
         for layer_pca_component in layer_pca_components:
             # iterate through each arch
             try:
-                arch_layer_transform = {}
+                arch_layer_transform = OrderedDict()
                 for (model_arch, models) in model_dict.items():
                     layer_transform = None
 
                     # collect layer transform for this arch
-                    pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
                     for layers in models[0].keys():
+                        pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
                         s = np.stack([model[layers] for model in models])  # s = this layer from each model
                         if kernel != 'rbf':
                             scaler = StandardScaler()
@@ -209,10 +226,10 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                 # using this arch_layer_transform, try each arch pca_component
                 for arch_pca_component in arch_pca_components:
                     arch_transform = None
-                    pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
 
                     # pca for each architecture then stack
-                    for (lt_arch, lt_models) in arch_layer_transform.items():
+                    for lt_arch, lt_models in arch_layer_transform.items():
+                        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
                         s = pca.fit_transform(lt_models)
                         if arch_transform is None:
                             arch_transform = s
@@ -232,7 +249,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                             file_name = date_time + f'_train_lpca_{layer_pca_component}_apca_{arch_pca_component}_dpca_{dataset_pca_component}_ica_{ica_component}_kernel_{kernel}.pkl'
                             with open(file_path + file_name, "wb") as fp:
                                 pickle.dump(ica_transform, fp)
-                            file_map[file_name] = {}
+                            file_map[file_name] = OrderedDict()
                             file_map[file_name]['config'] = {'layer_pca_component': layer_pca_component,
                                                              'arch_pca_component': arch_pca_component,
                                                              'dataset_pca_component': dataset_pca_component,

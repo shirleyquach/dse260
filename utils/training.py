@@ -1,5 +1,6 @@
 from hpsklearn import HyperoptEstimator, random_forest_classifier, sgd_classifier, svc, \
-    gradient_boosting_classifier, k_neighbors_classifier, logistic_regression, ada_boost_classifier
+    gradient_boosting_classifier, k_neighbors_classifier, logistic_regression, ada_boost_classifier, \
+    xgboost_classification
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, f1_score
@@ -12,6 +13,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import SGDClassifier, LogisticRegression
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.svm import SVC
+from collections import OrderedDict
 
 import logging
 
@@ -30,7 +32,7 @@ def train_model_fast(file_path, train_file, y, threshold):
                    AdaBoostClassifier(),
                    LogisticRegression()
                    ]
-    clf_dict = {}
+    clf_dict = OrderedDict()
     for clf in classifiers:
         # fit this model
         model = clf
@@ -67,30 +69,30 @@ def train_model_opt(file_path, train_file, y, threshold):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42)
 
-    classifiers = [random_forest_classifier,
-                   gradient_boosting_classifier,
-                   k_neighbors_classifier,
-                   sgd_classifier,
-                   ada_boost_classifier
+    classifiers = [#random_forest_classifier,
+                   #gradient_boosting_classifier,
+                   #k_neighbors_classifier,
+                   #gaussian_process_classifier,
+                   xgboost_classification
                    ]
-    clf_dict = {}
+    clf_dict = OrderedDict()
     for clf in classifiers:
 
         model = HyperoptEstimator(classifier=clf('this_clf'),
                                   max_evals=5,
                                   n_jobs=16,
-                                  algo=tpe.suggest(verbose=False),
+                                  algo=tpe.suggest,
                                   preprocessing=[],
                                   verbose=False
                                   )
         # find optimized model
-        model.fit(X_train, y_train, n_folds=5, cv_shuffle=True)
+        model.fit(X_train, y_train, n_folds=10, cv_shuffle=True)
         model = model.best_model()['learner']
         model.fit(X_train, y_train)
 
         # calibrate prob for this model
-        cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1, cv='prefit')
-        cc.fit(X_train, y_train)
+        # cc = CalibratedClassifierCV(model, method='sigmoid', n_jobs=-1, cv='prefit')
+        # cc.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
         f1 = f1_score(y_test, y_pred, average='micro')
@@ -99,9 +101,9 @@ def train_model_opt(file_path, train_file, y, threshold):
             continue
         # store predictions of this model
         f1_class = f1_score(y_test, y_pred, average=None)
-        accuracy = cc.score(X_test, y_test)
-        predictions = cc.predict_proba(X)[:, 1]
-        clf_dict[clf.__name__] = {'model': cc,
+        accuracy = model.score(X_test, y_test)
+        predictions = model.predict_proba(X)[:, 1]
+        clf_dict[clf.__name__] = {'model': model,
                                   'accuracy': accuracy,
                                   'f1': f1,
                                   'f1_0': f1_class[0],
@@ -144,3 +146,46 @@ def train_model_eval_ensemble(X, y, tol):
     cc.fit(X, y)
 
     return sfs.get_support(), cc
+
+
+def train_model_search(file_path, train_file, y, best_model, best_accuracy, best_file, max_evals):
+    loggers_to_shut_up = [
+        "hyperopt.tpe",
+        "hyperopt.fmin",
+        "hyperopt.pyll.base",
+    ]
+    for logger in loggers_to_shut_up:
+        logging.getLogger(logger).setLevel(logging.ERROR)
+
+    with open(file_path + train_file, "rb") as fp:
+        X = pickle.load(fp)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42)
+    print(train_file)
+
+    # hyperopt models
+    classifiers = [random_forest_classifier
+        # gradient_boosting_classifier,
+        # k_neighbors_classifier,
+        # gaussian_process_classifier,
+        # xgboost_classification
+    ]
+    for clf in classifiers:
+        model = HyperoptEstimator(classifier=clf('clf'),
+                                  n_jobs=16,
+                                  max_evals=max_evals,
+                                  algo=tpe.suggest,
+                                  fit_increment=5,
+                                  preprocessing=[])
+        model.fit(X_train, y_train, n_folds=10, cv_shuffle=True)
+
+        accuracy = model.score(X_test, y_test)
+
+        if accuracy > best_accuracy:
+            model = model.best_model()['learner']
+            model.fit(X_train, y_train)
+            best_model = model
+            best_accuracy = accuracy
+            best_file = train_file
+
+    return best_model, best_accuracy, best_file

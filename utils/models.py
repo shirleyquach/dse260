@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 
 def create_layer_map(model_repr_dict):
-    model_layer_map = {}
+    model_layer_map = OrderedDict()
     for (model_class, models) in model_repr_dict.items():
         layers = models[0]
         layer_names = list(layers.keys())
@@ -73,8 +73,8 @@ def load_ground_truth(model_dirpath: str):
 
 
 def load_models_dirpath(models_dirpath):
-    model_repr_dict = {}
-    model_ground_truth_dict = {}
+    model_repr_dict = OrderedDict()
+    model_ground_truth_dict = OrderedDict()
 
     for model_path in tqdm(models_dirpath):
         model, model_repr, model_class = load_model(

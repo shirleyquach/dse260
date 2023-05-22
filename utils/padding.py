@@ -1,16 +1,17 @@
 import numpy as np
 from utils.arrays import get_model_shape
+from collections import OrderedDict
 
 
 def create_models_padding(model_repr_dict: dict) -> dict:
-    padding = {}
+    padding = OrderedDict()
 
     for (model_class, model_repr_list) in model_repr_dict.items():
         # Create reference model shape from the first model
         reference_model = model_repr_list[0]
         reference = get_model_shape(reference_model)
 
-        padding[model_class] = {}
+        padding[model_class] = OrderedDict()
 
         # Ensure every model has the same shape as the reference model
         for model_repr in model_repr_list:
