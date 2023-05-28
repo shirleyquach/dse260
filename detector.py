@@ -7,25 +7,20 @@ from os.path import join, exists, basename
 from collections import OrderedDict
 
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.metrics import classification_report
 from tqdm import tqdm
 
-from utils.training import train_model_search  # train_model_fast, train_model_opt, train_model_eval_ensemble,
+from utils.training import train_model_search, train_model_search_opt
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, load_ground_truth, \
     load_models_dirpath
 from utils.padding import create_models_padding, pad_model
-from utils.reduction import fit_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_final_layer, \
-    use_feature_reduction_algorithm_pca_ica, fit_feature_reduction_algorithm_pca_model_ica_opt, \
+from utils.reduction import fit_feature_reduction_algorithm_pca_model_ica_opt, \
     fit_feature_reduction_algorithm_pca_model_ica, use_feature_reduction_algorithm_pca_ica_pca_model_ica
 
 from sklearn.preprocessing import StandardScaler
-# from archs import Net2, Net3, Net4, Net5, Net6, Net7, Net2r, Net3r, Net4r, Net5r, Net6r, Net7r, Net2s, Net3s, Net4s, Net5s, Net6s, Net7s
 import torch
 
 import time
@@ -192,12 +187,19 @@ class Detector(AbstractDetector):
         dataset_pca_components = [2, 4, 6, 20]
         ica_components = [2, 4, 6]
         kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
+        
+        layer_pca_components = [100]
+        arch_pca_components = [20]
+        dataset_pca_components = [10]
+        ica_components = [2]
+        kernels = ['rbf', 'poly']       
         '''
         layer_pca_components = [20, 100, 200]
-        arch_pca_components = [30, 100]
-        dataset_pca_components = [10, 20]
-        ica_components = [2, 6]
+        arch_pca_components = [30, 50, 80]
+        dataset_pca_components = [10, 20, 30]
+        ica_components = [2, 4]
         kernels = ['rbf', 'poly', 'sigmoid', 'cosine']
+
         file_count, file_map = fit_feature_reduction_algorithm_pca_model_ica_opt(date_time=dt_str,
                                                                                  file_path=training_fp,
                                                                                  model_dict=flat_models,
@@ -221,28 +223,19 @@ class Detector(AbstractDetector):
         best_accuracy = 0.0
         best_file = None
         for train_file in file_map.keys():
-            # file_map[train_file]['models'] = train_model_fast(file_path=training_fp, train_file=train_file, y=y, threshold=0.5)
-            best_model, best_accuracy, best_file = train_model_search(file_path=training_fp,
-                                                                      train_file=train_file,
-                                                                      y=y,
-                                                                      best_model=best_model,
-                                                                      best_accuracy=best_accuracy,
-                                                                      best_file=best_file,
-                                                                      max_evals=8)
-        print('Model Test Accuracy:', best_accuracy)
-        '''
-        logging.info("Training down select ensemble...")
-        # only keep configs where models made it past threshold
-        file_map = OrderedDict({key: val for key, val in file_map.items() if val['models'] != {}})
-        # construct dataset of model predictions
-        X = np.stack([model['predictions'] for val in file_map.values() for model in val['models'].values()])
-        X = np.transpose(X)
-        X_map = np.stack([[fn,mn] for fn, val in file_map.items() for mn in val['models'].keys()])
-        selected_features, ensemble_model = train_model_eval_ensemble(X, y, tol=.01)
-        '''
+            best_model, best_accuracy, best_file = train_model_search_opt(file_path=training_fp,
+                                                                          train_file=train_file,
+                                                                          y=y,
+                                                                          best_model=best_model,
+                                                                          best_accuracy=best_accuracy,
+                                                                          best_file=best_file,
+                                                                          max_evals=100)
 
         with open(training_fp + best_file, "rb") as fp:
             X = pickle.load(fp)
+
+        print('Best Config File:', best_file)
+        print('Model Test Accuracy:', best_accuracy)
 
         # calibrate prob for this model
         cc = CalibratedClassifierCV(best_model, method='sigmoid', n_jobs=-1, cv='prefit')
@@ -274,57 +267,6 @@ class Detector(AbstractDetector):
             pickle.dump(layer_transform, fp, protocol=4)
 
         logging.info("Training complete")
-
-        '''
-        print('model accuracy:', ensemble_model.score(X[:, selected_features], y))
-        logging.info("Saving ensemble, models, components...")
-
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(ensemble_model, fp)
-
-        # turn X_map into list of models to remove
-        X_map = X_map[~selected_features]
-        for feats in X_map:
-            file_map[feats[0]]['models'].pop(feats[1])
-        # if all the models were removed, remove the component config too
-        file_map = OrderedDict({key: val for key, val in file_map.items() if len(val['models']) > 0})
-
-        # save the models here
-        with open(self.learned_parameters_dirpath + 'file_map.pkl', "wb") as fp:
-            pickle.dump(file_map, fp)
-        
-        # get the selected fits and create dataset for ensemble
-        selected_fits = {}
-        for filename, val in file_map.items():
-            config = val['config']
-            data_transform, dim_reduction = fit_feature_reduction_algorithm_pca_model_ica(model_dict=flat_models,
-                                                                                          layer_pca_component=config['layer_pca_component'],
-                                                                                          arch_pca_component=config['arch_pca_component'],
-                                                                                          dataset_pca_component=config['dataset_pca_component'],
-                                                                                          ica_component=config['dataset_pca_component'],
-                                                                                          kernel=config['kernel'])
-            selected_fits[filename] = dim_reduction
-
-        with open(self.learned_parameters_dirpath + 'selected_fits.pkl', "wb") as fp:
-            pickle.dump(selected_fits, fp)
-
-        
-        logging.info("Training ensemble...")
-        gbc = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=0)
-        model = BaggingClassifier(base_estimator=gbc, n_estimators=500, random_state=0, n_jobs=-1)
-        model.fit(X, y)
-        logging.info("Training CalibratedClassifierCV...")
-        calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
-        calibrator.fit(X, y)
-
-        print(model.score(X, y))
-        print(model.best_model())
-
-        logger.info("Saving model...")
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(calibrator, fp)
-        '''
-        # self.write_metaparameters()
 
     def inference_on_example_data(self, model, examples_dirpath):
         """Method to demonstrate how to inference on a round's example data.
@@ -407,7 +349,7 @@ class Detector(AbstractDetector):
         logger.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        
+        '''
         # List all available test model and limit to the number provided
         test_model_path_list = sorted(
             [
@@ -415,26 +357,31 @@ class Detector(AbstractDetector):
                 for model in listdir(join(round_training_dataset_dirpath, 'test_models'))
             ]
         )
-        '''
+
         with open(self.learned_parameters_dirpath + 'layer_transform.bin', "rb") as fp:
             layer_transform = pickle.load(fp)
 
         with open(self.model_filepath, "rb") as fp:
             detector_model = pickle.load(fp)
 
-        model, model_repr, model_class = load_model(model_filepath)
-        model_repr = pad_model(model_repr, model_class, models_padding_dict)
-        flat_model = flatten_model(model_repr, model_layer_map[model_class])
+        results = []
+        for test_model in tqdm(test_model_path_list):
+            model_filepath = test_model + '/model.pt'
+            model, model_repr, model_class = load_model(model_filepath)
+            model_repr = pad_model(model_repr, model_class, models_padding_dict)
+            flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-        X = (
-                use_feature_reduction_algorithm_pca_ica_pca_model_ica(layer_transform, model_class, flat_model)
-                * self.model_skew["__all__"]
-        )
+            X = use_feature_reduction_algorithm_pca_ica_pca_model_ica(layer_transform, model_class, flat_model)
 
-        probability = detector_model.predict_proba(X)[:,1][0]
-        probability = str(round(probability*100,1))
-
-        print('Trojan probability:', str(probability) + '%')
+            probability = detector_model.predict_proba(X)[:, 1][0]
+            probability = str(round(probability * 100, 1))
+            ground_truth = load_ground_truth(test_model)
+            results.append([probability, ground_truth])
+            # print('Trojan probability:', str(probability) + '%')
+        np.savetxt("results.csv",
+                   results,
+                   delimiter=", ",
+                   fmt='% s')
 
     '''
         # log the results

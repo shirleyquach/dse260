@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 
 
+
 def create_layer_map(model_repr_dict):
     model_layer_map = OrderedDict()
     for (model_class, models) in model_repr_dict.items():
@@ -48,6 +49,8 @@ def load_model(model_filepath: str) -> (dict, str):
         model, dict, str - Torch model + dictionary representation of the model + model class name
     """
     model = torch.load(model_filepath, map_location='cpu')
+    #model = torch.load(model_filepath)
+
     model_class = model.__class__.__name__
     model_repr = OrderedDict(
         {layer: tensor.cpu().numpy() for (layer, tensor) in model.state_dict().items()}

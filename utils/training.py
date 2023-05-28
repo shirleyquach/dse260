@@ -1,9 +1,8 @@
 from hpsklearn import HyperoptEstimator, random_forest_classifier, sgd_classifier, svc, \
     gradient_boosting_classifier, k_neighbors_classifier, logistic_regression, ada_boost_classifier, \
     xgboost_classification
-from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, f1_score
+from sklearn.metrics import f1_score
 from hyperopt import tpe
 import pickle
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
@@ -14,6 +13,8 @@ from sklearn.linear_model import SGDClassifier, LogisticRegression
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.svm import SVC
 from collections import OrderedDict
+import xgboost as xgb
+import optuna
 
 import logging
 
@@ -187,5 +188,72 @@ def train_model_search(file_path, train_file, y, best_model, best_accuracy, best
             best_model = model
             best_accuracy = accuracy
             best_file = train_file
+
+    return best_model, best_accuracy, best_file
+
+
+def train_model_search_opt(file_path, train_file, y, best_model, best_accuracy, best_file, max_evals):
+    def objective(trial):
+
+        d_train = xgb.DMatrix(X_train, label=y_train)
+
+        param = {
+            "verbosity": 0,
+            "objective": "binary:logistic",
+            "eval_metric": "auc",
+            # "tree_method":'gpu_hist',
+            # "gpu_id": 0,
+            "n_jobs": -1,
+            "booster": trial.suggest_categorical("booster", ["gbtree", "dart"]),
+            "lambda": trial.suggest_float("lambda", 1e-8, 1.0, log=True),
+            "alpha": trial.suggest_float("alpha", 1e-8, 1.0, log=True),
+            "learning_rate": trial.suggest_float("learning_rate", 0.00001, 0.4, log=True),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 5900, 200),
+            "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
+            "subsample": trial.suggest_float("subsample", 0.5, 1),
+            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1),
+            "colsample_bylevel": trial.suggest_int("colsample_bylevel", 0.5, 1),
+        }
+
+        if param["booster"] == "gbtree" or param["booster"] == "dart":
+            param["max_depth"] = trial.suggest_int("max_depth", 1, 11)
+            param["eta"] = trial.suggest_float("eta", 1e-8, 1.0, log=True)
+            param["gamma"] = trial.suggest_float("gamma", 1e-8, 1.0, log=True)
+            param["grow_policy"] = trial.suggest_categorical("grow_policy", ["depthwise", "lossguide"])
+        if param["booster"] == "dart":
+            param["sample_type"] = trial.suggest_categorical("sample_type", ["uniform", "weighted"])
+            param["normalize_type"] = trial.suggest_categorical("normalize_type", ["tree", "forest"])
+            param["rate_drop"] = trial.suggest_float("rate_drop", 1e-8, 1.0, log=True)
+            param["skip_drop"] = trial.suggest_float("skip_drop", 1e-8, 1.0, log=True)
+
+        pruning_callback = optuna.integration.XGBoostPruningCallback(trial, "test-auc")
+        history = xgb.cv(param, d_train, num_boost_round=100, callbacks=[pruning_callback])
+
+        mean_auc = history["test-auc-mean"][-1]
+        return mean_auc
+
+    with open(file_path + train_file, "rb") as fp:
+        X = pickle.load(fp)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42)
+    print(train_file)
+
+    # hyperopt models
+    pruner = optuna.pruners.MedianPruner(n_warmup_steps=5)
+    study = optuna.create_study(pruner=pruner, direction="maximize")
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    study.optimize(objective, n_trials=max_evals, n_jobs=-1)
+    trial = study.best_trial
+
+    value = trial.value
+
+    if value > best_accuracy:
+        xgb_params =study.best_params
+        model = xgb.XGBClassifier(**xgb_params)
+        model = model.fit(X_train, y_train)
+        accuracy = model.score(X_test, y_test)
+        best_model = model
+        best_accuracy = accuracy
+        best_file = train_file
 
     return best_model, best_accuracy, best_file

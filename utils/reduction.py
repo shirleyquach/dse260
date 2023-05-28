@@ -153,7 +153,7 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
 
         # feature reduction of each layer in this arch
         for layers in models[0].keys():
-            pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
+            pca = KernelPCA(n_components=layer_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
             s = np.stack([model[layers] for model in models])  # s = this layer from each model
 
             # store PCA fit
@@ -168,7 +168,7 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
         # s is stack pca features of each model in this arch
         del model_dict[model_arch]
         gc.collect()
-        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
+        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
         dim_reduction[model_arch]['arch_pca'] = pca.fit(layer_transform)
         a = pca.transform(layer_transform)
         del layer_transform
@@ -178,7 +178,7 @@ def fit_feature_reduction_algorithm_pca_model_ica(model_dict, layer_pca_componen
         arch_transform = np.vstack((arch_transform, a))
 
     # pca for the entire dataset
-    pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
+    pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
     dim_reduction['dataset_pca'] = pca.fit(arch_transform)
     data_transform = pca.fit_transform(arch_transform)
 
@@ -208,11 +208,11 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
 
                     # collect layer transform for this arch
                     for layers in models[0].keys():
-                        pca = KernelPCA(n_components=layer_pca_component, kernel=kernel)
+                        pca = KernelPCA(n_components=layer_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
                         s = np.stack([model[layers] for model in models])  # s = this layer from each model
-                        if kernel != 'rbf':
-                            scaler = StandardScaler()
-                            s = scaler.fit_transform(s)
+                        # if kernel != 'rbf':
+                        #     scaler = StandardScaler()
+                        #     s = scaler.fit_transform(s)
                         s = pca.fit_transform(s)  # store the PCA transformed features
                         if layer_transform is None:
                             layer_transform = s
@@ -229,7 +229,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
 
                     # pca for each architecture then stack
                     for lt_arch, lt_models in arch_layer_transform.items():
-                        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel)
+                        pca = KernelPCA(n_components=arch_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
                         s = pca.fit_transform(lt_models)
                         if arch_transform is None:
                             arch_transform = s
@@ -239,7 +239,7 @@ def fit_feature_reduction_algorithm_pca_model_ica_opt(date_time, file_path, mode
                     # using this arch_transform, try dataset pca
                     for dataset_pca_component in dataset_pca_components:
                         # pca for the entire dataset
-                        pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel)
+                        pca = KernelPCA(n_components=dataset_pca_component, kernel=kernel, copy_X=False, n_jobs=-1)
                         data_transform = pca.fit_transform(arch_transform)
 
                         for ica_component in ica_components:
