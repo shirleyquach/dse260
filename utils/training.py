@@ -192,7 +192,7 @@ def train_model_search(file_path, train_file, y, best_model, best_accuracy, best
     return best_model, best_accuracy, best_file
 
 
-def train_model_search_opt(file_path, train_file, y, best_model, best_accuracy, best_file, max_evals):
+def train_model_search_opt(file_path, train_file, y, best_model, best_accuracy, best_value, best_file, max_evals):
     def objective(trial):
 
         d_train = xgb.DMatrix(X_train, label=y_train)
@@ -247,13 +247,13 @@ def train_model_search_opt(file_path, train_file, y, best_model, best_accuracy, 
 
     value = trial.value
 
-    if value > best_accuracy:
-        xgb_params =study.best_params
+    if value > best_value:
+        xgb_params = study.best_params
         model = xgb.XGBClassifier(**xgb_params)
         model = model.fit(X_train, y_train)
-        accuracy = model.score(X_test, y_test)
+        best_accuracy = model.score(X_test, y_test)
         best_model = model
-        best_accuracy = accuracy
+        best_value = value
         best_file = train_file
 
-    return best_model, best_accuracy, best_file
+    return best_model, best_accuracy, best_file, best_value
