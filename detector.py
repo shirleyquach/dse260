@@ -180,23 +180,9 @@ class Detector(AbstractDetector):
         dt_str = datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M')
         logging.info(f"Getting datetime for file generation: {dt_str}")
 
-        '''
-        layer_pca_components = [25, 30, 100, 200]
-        #arch_pca_components = [100, 200, 300] # arch pca components must be less than the number of samples in each architechture
-        arch_pca_components = [10, 15, 25] # use these for testing
-        dataset_pca_components = [2, 4, 6, 20]
-        ica_components = [2, 4, 6]
-        kernels = ['poly', 'linear', 'rbf', 'sigmoid', 'cosine']
-        
-        layer_pca_components = [100]
-        arch_pca_components = [20]
-        dataset_pca_components = [10]
-        ica_components = [2]
-        kernels = ['rbf', 'poly']       
-        '''
-        layer_pca_components = [20, 100, 200]
-        arch_pca_components = [30, 50, 80]
-        dataset_pca_components = [10, 20, 30]
+        layer_pca_components = [100, 200]
+        arch_pca_components = [100, 300]
+        dataset_pca_components = [10, 40, 80]
         ica_components = [2, 4]
         kernels = ['rbf', 'poly', 'sigmoid', 'cosine']
 
@@ -221,20 +207,23 @@ class Detector(AbstractDetector):
         logging.info("Training models for files...")
         best_model = None
         best_accuracy = 0.0
+        best_value = 0.0
         best_file = None
         for train_file in file_map.keys():
-            best_model, best_accuracy, best_file = train_model_search_opt(file_path=training_fp,
-                                                                          train_file=train_file,
-                                                                          y=y,
-                                                                          best_model=best_model,
-                                                                          best_accuracy=best_accuracy,
-                                                                          best_file=best_file,
-                                                                          max_evals=100)
+            best_model, best_accuracy, best_file, best_value = train_model_search_opt(file_path=training_fp,
+                                                                                      train_file=train_file,
+                                                                                      y=y,
+                                                                                      best_model=best_model,
+                                                                                      best_accuracy=best_accuracy,
+                                                                                      best_value=best_value,
+                                                                                      best_file=best_file,
+                                                                                      max_evals=100)
 
         with open(training_fp + best_file, "rb") as fp:
             X = pickle.load(fp)
 
         print('Best Config File:', best_file)
+        print('Best Config roc_auc:', best_value)
         print('Model Test Accuracy:', best_accuracy)
 
         # calibrate prob for this model
@@ -349,7 +338,7 @@ class Detector(AbstractDetector):
         logger.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-        '''
+        
         # List all available test model and limit to the number provided
         test_model_path_list = sorted(
             [
@@ -357,33 +346,29 @@ class Detector(AbstractDetector):
                 for model in listdir(join(round_training_dataset_dirpath, 'test_models'))
             ]
         )
-
+        '''
         with open(self.learned_parameters_dirpath + 'layer_transform.bin', "rb") as fp:
             layer_transform = pickle.load(fp)
 
         with open(self.model_filepath, "rb") as fp:
             detector_model = pickle.load(fp)
 
-        results = []
-        for test_model in tqdm(test_model_path_list):
-            model_filepath = test_model + '/model.pt'
-            model, model_repr, model_class = load_model(model_filepath)
-            model_repr = pad_model(model_repr, model_class, models_padding_dict)
-            flat_model = flatten_model(model_repr, model_layer_map[model_class])
+        model, model_repr, model_class = load_model(model_filepath)
+        model_repr = pad_model(model_repr, model_class, models_padding_dict)
+        flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-            X = use_feature_reduction_algorithm_pca_ica_pca_model_ica(layer_transform, model_class, flat_model)
+        X = (
+                use_feature_reduction_algorithm_pca_ica_pca_model_ica(layer_transform, model_class, flat_model)
+                * self.model_skew["__all__"]
+        )
 
-            probability = detector_model.predict_proba(X)[:, 1][0]
-            probability = str(round(probability * 100, 1))
-            ground_truth = load_ground_truth(test_model)
-            results.append([probability, ground_truth])
-            # print('Trojan probability:', str(probability) + '%')
-        np.savetxt("results.csv",
-                   results,
-                   delimiter=", ",
-                   fmt='% s')
+        probability = str(detector_model.predict(X)[0])
 
-    '''
+        logging.info("Trojan probability: %s", probability)
+        with open(result_filepath, "w") as fp:
+            fp.write(probability)
+
+        '''
         # log the results
         run_time = str(time.time() - start_time)
         test_count = len(test_model_path_list)
